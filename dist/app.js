@@ -27,7 +27,7 @@ export const createApp = () => {
     app.use(session({
         secret: config.auth.sessionSecret,
         resave: false,
-        saveUninitialized: false,
+        saveUninitialized: false, // 不保存未初始化的会话,节省内存
         cookie: {
             secure: config.nodeEnv === 'production',
             httpOnly: true,
@@ -39,7 +39,7 @@ export const createApp = () => {
     app.use(express.static(path.join(__dirname, '../public')));
     app.use('/api', apiLimiter);
     app.use('/api', routes);
-    app.get('/health', (req, res) => {
+    app.get('/health', (_req, res) => {
         res.json({ status: 'ok', timestamp: new Date().toISOString() });
     });
     app.use(notFoundHandler);

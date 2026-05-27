@@ -185,11 +185,10 @@ export const searchByContent = async (query, userId) => {
         return [];
     }
     const result = db.exec(`
-    SELECT d.id, d.title, d.filename, d.filepath, d.owner_id, d.created_at, d.updated_at
+    SELECT DISTINCT d.id, d.title, d.filename, d.filepath, d.owner_id, d.created_at, d.updated_at
     FROM documents d
-    WHERE d.status != 'deleted' AND (d.owner_id = ${userId} OR EXISTS (
-      SELECT 1 FROM document_shares ds WHERE ds.document_id = d.id AND ds.user_id = ${userId}
-    ))
+    LEFT JOIN document_shares ds ON d.id = ds.document_id AND ds.user_id = ${userId}
+    WHERE d.status != 'deleted' AND (d.owner_id = ${userId} OR ds.id IS NOT NULL)
   `);
     const results = [];
     if (result.length && result[0].values.length) {
@@ -236,11 +235,10 @@ export const getDocumentsByTag = async (tag, userId) => {
         return [];
     }
     const result = db.exec(`
-    SELECT d.id, d.title, d.filename, d.owner_id, d.created_at, d.updated_at
+    SELECT DISTINCT d.id, d.title, d.filename, d.owner_id, d.created_at, d.updated_at
     FROM documents d
-    WHERE d.status != 'deleted' AND (d.owner_id = ${userId} OR EXISTS (
-      SELECT 1 FROM document_shares ds WHERE ds.document_id = d.id AND ds.user_id = ${userId}
-    )) AND d.title LIKE "%${tag}%"
+    LEFT JOIN document_shares ds ON d.id = ds.document_id AND ds.user_id = ${userId}
+    WHERE d.status != 'deleted' AND (d.owner_id = ${userId} OR ds.id IS NOT NULL) AND d.title LIKE "%${tag}%"
     ORDER BY d.updated_at DESC
   `);
     const documents = [];

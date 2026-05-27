@@ -6,21 +6,36 @@ import { ensureDirectoryExists } from './utils/file.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let db = null;
 const DB_PATH = process.env.DB_DATABASE || path.join(__dirname, '../database.sqlite');
+const addColumnIfNotExists = (db, tableName, columnName, columnDef) => {
+    try {
+        const result = db.exec(`PRAGMA table_info(${tableName})`);
+        if (result.length > 0 && result[0].values.length > 0) {
+            const columns = result[0].values.map((row) => row[1]);
+            if (!columns.includes(columnName)) {
+                db.run(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDef}`);
+            }
+        }
+    }
+    catch (error) {
+        console.warn(`Failed to add column ${columnName} to ${tableName}:`, error);
+    }
+};
 export const initDB = async () => {
     const SQL = await initSqlJs();
     if (fs.existsSync(DB_PATH)) {
         const buffer = fs.readFileSync(DB_PATH);
         db = new SQL.Database(buffer);
-        db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS provider TEXT`);
-        db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS provider_id TEXT`);
-        db.run(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active'`);
-        db.run(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS locked INTEGER DEFAULT 0`);
-        db.run(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS locked_by INTEGER`);
+        addColumnIfNotExists(db, 'users', 'provider', 'TEXT');
+        addColumnIfNotExists(db, 'users', 'provider_id', 'TEXT');
+        addColumnIfNotExists(db, 'documents', 'status', "TEXT DEFAULT 'active'");
+        addColumnIfNotExists(db, 'documents', 'locked', 'INTEGER DEFAULT 0');
+        addColumnIfNotExists(db, 'documents', 'locked_by', 'INTEGER');
+        addColumnIfNotExists(db, 'upload_sessions', 'hash', 'TEXT');
     }
     else {
         db = new SQL.Database();
         db.run(`
-      CREATE TABLE IF NOT EXISTS users (
+      CREATE TABLE users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
         email TEXT UNIQUE NOT NULL,
@@ -31,7 +46,7 @@ export const initDB = async () => {
       )
     `);
         db.run(`
-      CREATE TABLE IF NOT EXISTS documents (
+      CREATE TABLE documents (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
         filename TEXT NOT NULL,
@@ -46,7 +61,7 @@ export const initDB = async () => {
       )
     `);
         db.run(`
-      CREATE TABLE IF NOT EXISTS document_versions (
+      CREATE TABLE document_versions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         document_id INTEGER NOT NULL,
         version_number INTEGER NOT NULL,
@@ -58,7 +73,7 @@ export const initDB = async () => {
       )
     `);
         db.run(`
-      CREATE TABLE IF NOT EXISTS document_shares (
+      CREATE TABLE document_shares (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         document_id INTEGER NOT NULL,
         user_id INTEGER NOT NULL,
@@ -70,7 +85,7 @@ export const initDB = async () => {
       )
     `);
         db.run(`
-      CREATE TABLE IF NOT EXISTS share_links (
+      CREATE TABLE share_links (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         document_id INTEGER NOT NULL,
         token TEXT UNIQUE NOT NULL,
@@ -84,7 +99,7 @@ export const initDB = async () => {
       )
     `);
         db.run(`
-      CREATE TABLE IF NOT EXISTS audit_logs (
+      CREATE TABLE audit_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
         document_id INTEGER,
@@ -99,12 +114,13 @@ export const initDB = async () => {
       )
     `);
         db.run(`
-      CREATE TABLE IF NOT EXISTS upload_sessions (
+      CREATE TABLE upload_sessions (
         file_id TEXT PRIMARY KEY,
         filename TEXT NOT NULL,
         filesize INTEGER NOT NULL,
         total_chunks INTEGER NOT NULL,
         uploaded_chunks TEXT NOT NULL,
+        hash TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )

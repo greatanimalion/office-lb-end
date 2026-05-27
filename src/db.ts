@@ -53,6 +53,20 @@ export interface ShareLink {
   createdAt: Date
 }
 
+const addColumnIfNotExists = (db: Database, tableName: string, columnName: string, columnDef: string): void => {
+  try {
+    const result = db.exec(`PRAGMA table_info(${tableName})`)
+    if (result.length > 0 && result[0].values.length > 0) {
+      const columns = result[0].values.map((row: unknown[]) => row[1] as string)
+      if (!columns.includes(columnName)) {
+        db.run(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDef}`)
+      }
+    }
+  } catch (error) {
+    console.warn(`Failed to add column ${columnName} to ${tableName}:`, error)
+  }
+}
+
 export const initDB = async (): Promise<void> => {
   const SQL = await initSqlJs()
 
@@ -60,15 +74,16 @@ export const initDB = async (): Promise<void> => {
     const buffer = fs.readFileSync(DB_PATH)
     db = new SQL.Database(buffer)
     
-    db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS provider TEXT`)
-    db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS provider_id TEXT`)
-    db.run(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active'`)
-    db.run(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS locked INTEGER DEFAULT 0`)
-    db.run(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS locked_by INTEGER`)
+    addColumnIfNotExists(db, 'users', 'provider', 'TEXT')
+    addColumnIfNotExists(db, 'users', 'provider_id', 'TEXT')
+    addColumnIfNotExists(db, 'documents', 'status', "TEXT DEFAULT 'active'")
+    addColumnIfNotExists(db, 'documents', 'locked', 'INTEGER DEFAULT 0')
+    addColumnIfNotExists(db, 'documents', 'locked_by', 'INTEGER')
+    addColumnIfNotExists(db, 'upload_sessions', 'hash', 'TEXT')
   } else {
     db = new SQL.Database()
     db.run(`
-      CREATE TABLE IF NOT EXISTS users (
+      CREATE TABLE users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
         email TEXT UNIQUE NOT NULL,
@@ -80,7 +95,7 @@ export const initDB = async (): Promise<void> => {
     `)
 
     db.run(`
-      CREATE TABLE IF NOT EXISTS documents (
+      CREATE TABLE documents (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
         filename TEXT NOT NULL,
@@ -96,7 +111,7 @@ export const initDB = async (): Promise<void> => {
     `)
 
     db.run(`
-      CREATE TABLE IF NOT EXISTS document_versions (
+      CREATE TABLE document_versions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         document_id INTEGER NOT NULL,
         version_number INTEGER NOT NULL,
@@ -109,7 +124,7 @@ export const initDB = async (): Promise<void> => {
     `)
 
     db.run(`
-      CREATE TABLE IF NOT EXISTS document_shares (
+      CREATE TABLE document_shares (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         document_id INTEGER NOT NULL,
         user_id INTEGER NOT NULL,
@@ -122,7 +137,7 @@ export const initDB = async (): Promise<void> => {
     `)
 
     db.run(`
-      CREATE TABLE IF NOT EXISTS share_links (
+      CREATE TABLE share_links (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         document_id INTEGER NOT NULL,
         token TEXT UNIQUE NOT NULL,
@@ -137,7 +152,7 @@ export const initDB = async (): Promise<void> => {
     `)
 
     db.run(`
-      CREATE TABLE IF NOT EXISTS audit_logs (
+      CREATE TABLE audit_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
         document_id INTEGER,
@@ -153,12 +168,13 @@ export const initDB = async (): Promise<void> => {
     `)
 
     db.run(`
-      CREATE TABLE IF NOT EXISTS upload_sessions (
+      CREATE TABLE upload_sessions (
         file_id TEXT PRIMARY KEY,
         filename TEXT NOT NULL,
         filesize INTEGER NOT NULL,
         total_chunks INTEGER NOT NULL,
         uploaded_chunks TEXT NOT NULL,
+        hash TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
