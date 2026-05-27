@@ -2,8 +2,8 @@ import jwt from 'jsonwebtoken'
 import config from '../config/index.js'
 
 interface TokenPayload {
-  id: number
-  username: string
+  userId: number
+  email: string
   role: string
 }
 

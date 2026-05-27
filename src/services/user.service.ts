@@ -8,7 +8,7 @@ export interface LoginResult {
   token?: string
   user?: {
     id: number
-    username: string
+    email: string
     role: string
   }
   error?: string
@@ -23,17 +23,14 @@ export interface CreateUserOptions {
   password?: string
 }
 
-export const login = async (username: string, password: string): Promise<LoginResult> => {
+export const login = async (email: string, password: string): Promise<LoginResult> => {
   const db = getDB()
-
   if (!db) {
     return { success: false, error: '数据库未初始化' }
   }
-
-  const userResult = db.exec(`SELECT * FROM users WHERE username = "${username}"`)
-
+  const userResult = db.exec(`SELECT * FROM users WHERE email = "${email}"`)
   if (!userResult.length || !userResult[0].values.length) {
-    return { success: false, error: '用户名或密码错误' }
+    return { success: false, error: '邮箱或密码错误' }
   }
 
   const row = userResult[0].values[0]
@@ -48,12 +45,11 @@ export const login = async (username: string, password: string): Promise<LoginRe
   const isValidPassword = bcrypt.compareSync(password, user.password)
 
   if (!isValidPassword) {
-    return { success: false, error: '用户名或密码错误' }
+    return { success: false, error: '邮箱或密码错误' }
   }
-
   const token = generateToken({
-    id: user.id,
-    username: user.username,
+    userId: user.id,
+    email: user.email,
     role: user.role
   })
 
@@ -62,7 +58,7 @@ export const login = async (username: string, password: string): Promise<LoginRe
     token,
     user: {
       id: user.id,
-      username: user.username,
+      email: user.email,
       role: user.role
     }
   }
@@ -143,7 +139,6 @@ export const createOrGetUser = async (options: CreateUserOptions): Promise<User>
 
 export const getUserById = async (id: number): Promise<User | null> => {
   const db = getDB()
-
   if (!db) {
     return null
   }

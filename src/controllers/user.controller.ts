@@ -8,12 +8,12 @@ export const loginController = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { username, password } = req.body
-    if (!username || !password) {
-      res.status(400).json({ message: '用户名和密码不能为空' })
+    const { email, password } = req.body
+    if (!email || !password) {
+      res.status(400).json({ message: '邮箱和密码不能为空' })
       return
     }
-    const result = await login(username, password)
+    const result = await login(email, password)
 
     if (!result.success) {
       res.status(401).json({ message: result.error })

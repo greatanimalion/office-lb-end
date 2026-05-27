@@ -1,6 +1,6 @@
 import express from 'express'
 import passport from 'passport'
-import { generateToken } from '../services/jwt.service'
+import { generateToken } from '../utils/jwt'
 import { getUserById } from '../services/user.service'
 import { User } from '../db'
 
@@ -22,7 +22,7 @@ router.get(
         return res.status(401).json({ message: '用户不存在' })
       }
 
-      const token = generateToken(user.id, user.role)
+      const token = generateToken({ userId: user.id, email: user.email, role: user.role })
       res.redirect(`/api/auth/callback?token=${token}`)
     } catch (error) {
       res.status(500).json({ message: '服务器错误' })
@@ -46,7 +46,7 @@ router.get(
         return res.status(401).json({ message: '用户不存在' })
       }
 
-      const token = generateToken(user.id, user.role)
+      const token = generateToken({ userId: user.id, email: user.email, role: user.role })
       res.redirect(`/api/auth/callback?token=${token}`)
     } catch (error) {
       res.status(500).json({ message: '服务器错误' })
@@ -68,7 +68,7 @@ router.get(
       if (!user) {
         return res.status(401).json({ message: '用户不存在' })
       }
-      const token = generateToken(user.id, user.role)
+      const token = generateToken({ userId: user.id, email: user.email, role: user.role })
       res.redirect(`/api/auth/callback?token=${token}`)
     } catch (error) {
       res.status(500).json({ message: '服务器错误' })

@@ -18,6 +18,6 @@ router.post('/login', authLimiter, loginController as any)
 router.post('/register', authLimiter, registerController as any)
 router.post('/sendcode', authLimiter, sendVerificationCodeController as any)
 router.get('/users', authenticate, getUsersController as any)
-router.get('/users/:id', authenticate, getUserByIdController as any)
+router.get('/user/:id', authenticate, getUserByIdController as any)
 
 export default router

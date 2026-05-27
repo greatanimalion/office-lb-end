@@ -67,7 +67,6 @@ export const generateVerificationCode = async (
   const expiresInSeconds = CODE_EXPIRE_MINUTES * 60
 
   const existingCode = await redisClient.get(key)
-  console.log(`==existingCode`, existingCode)
   if (existingCode) {
     const [, createdAtStr] = existingCode.split(':')
     const createdAt = parseInt(createdAtStr, 10)
