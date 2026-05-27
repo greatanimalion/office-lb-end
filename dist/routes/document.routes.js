@@ -1,0 +1,17 @@
+import { Router } from 'express';
+import { getDocumentsController, getSharedDocumentsController, getDocumentController, createDocumentController, updateDocumentController, deleteDocumentController, shareDocumentController, unshareDocumentController, downloadDocumentController, trackDocumentController } from '../controllers/document.controller.js';
+import { authenticate } from '../middlewares/auth.middleware';
+import { createUploadMiddleware } from '../middlewares/upload.middleware';
+const router = Router();
+router.use(authenticate);
+router.get('/', getDocumentsController);
+router.get('/shared', getSharedDocumentsController);
+router.get('/:id', getDocumentController);
+router.post('/', createUploadMiddleware('file'), createDocumentController);
+router.put('/:id', updateDocumentController);
+router.delete('/:id', deleteDocumentController);
+router.post('/:id/share', shareDocumentController);
+router.delete('/:id/share/:userId', unshareDocumentController);
+router.get('/:id/download', downloadDocumentController);
+router.post('/:id/track', trackDocumentController);
+export default router;

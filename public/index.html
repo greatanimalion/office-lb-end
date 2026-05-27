@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+    }
+  </style>
+  <body>
+    <div id="placeholder" style="height: 100vh"></div>
+    <script
+      type="text/javascript"
+      src="http://localhost/web-apps/apps/api/documents/api.js"
+    ></script>
+    <script>
+      const winHeight = window.innerHeight;
+      const config = {
+        height: winHeight,
+        token:
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkb2N1bWVudCI6eyJmaWxlVHlwZSI6ImRvY3giLCJrZXkiOiJLaGlyejZ6VFBkZmQ3IiwidGl0bGUiOiJ0ZXN0LmRvYyIsInVybCI6Imh0dHA6Ly9sb2NhbGhvc3Q6NTAwMC90ZXN0LmRvYyJ9LCJlZGl0b3JDb25maWciOnsiY2FsbGJhY2tVcmwiOiJodHRwczovL2V4YW1wbGUuY29tL3VybC10by1jYWxsYmFjayJ9LCJpYXQiOjE3Nzk4NDE3NDUsImV4cCI6MTc3OTg4NDk0NX0.kNeOHa0JRjU1g7Enq5BJkIzc75VL8-SRApPCxw9HYOM",
+        document: {
+          fileType: "docx",
+          key: "Khirz6zTPdfd7",
+          title: "测试版.docx",
+          url: "http://localhost:5000/test.doc",
+        },
+        documentType: "word",
+        editorConfig: {
+          customization: {
+            waterMark: {
+              // 文字内容，支持使用 \\n 换行，建议不超过2行
+              value: "张三丰(190465)\\n192.168.80.163",
+              // 水印颜色，支持 rgba 和 hax 颜色（如：#ff0000）
+              fillstyle: "rgba( 192, 192, 192, 0.6 )",
+              // 字号和字体
+              font: "20px Arial",
+              // 旋转角度，支持正负 120° 以内
+              rotate: -30,
+              // 水平间隔
+              horizontal: 30,
+              // 垂直间隔
+              vertical: 30,
+              // 整体透明度，0-1 之间的数字。默认为1，全不透明
+              opacity: 0.4,
+            },
+          },
+          user: {
+            group: "技术部",
+            id: "wytxer",
+            name: "李彬",
+          },
+          lang: "zh-CN",
+          callbackUrl: "https://example.com/url-to-callback",
+        },
+      };
+
+      const docEditor = new DocsAPI.DocEditor("placeholder", config);
+      let doc = DocsAPI.GetDocument();
+      let watermarkSettings = doc.GetWatermarkSettings();
+      watermarkSettings.SetType("text");
+      watermarkSettings.SetText("Example");
+      let textPr = watermarkSettings.GetTextPr();
+      textPr.SetFontFamily("Calibri");
+      textPr.SetFontSize(-1);
+      textPr.SetDoubleStrikeout(true);
+      textPr.SetItalic(true);
+      textPr.SetBold(true);
+      textPr.SetUnderline(true);
+      textPr.SetColor(Api.RGB(0, 255, 0));
+      textPr.SetHighlight("blue");
+      watermarkSettings.SetTextPr(textPr);
+      doc.SetWatermarkSettings(watermarkSettings);
+    </script>
+  </body>
+</html>

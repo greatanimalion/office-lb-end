@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import { loginController, registerController, getUsersController, getUserByIdController } from '../controllers/user.controller';
+import { authenticate } from '../middlewares/auth.middleware';
+import { authLimiter } from '../middlewares/rateLimit.middleware';
+const router = Router();
+router.post('/login', authLimiter, loginController);
+router.post('/register', authLimiter, registerController);
+router.get('/users', authenticate, getUsersController);
+router.get('/users/:id', authenticate, getUserByIdController);
+export default router;
