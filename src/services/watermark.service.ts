@@ -77,7 +77,6 @@ export const addDocumentWatermark = (
     case '.svg':
     case '.txt':
       return addTextWatermark(inputPath, outputPath, options)
-    
     case '.docx':
       return addDocxWatermark(inputPath, outputPath, options)
     

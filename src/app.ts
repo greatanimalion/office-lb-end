@@ -58,7 +58,7 @@ export const startServer = async (): Promise<void> => {
   const app = createApp()
   await initMeiliSearch()
   const server = app.listen(config.port, () => {
-    logger.info(`Server running on port ${config.port} localhost:${config.port}`)
+    logger.info(`Server running on port ${config.port} http://localhost:${config.port}`)
     logger.info(`Environment: ${config.nodeEnv}`)
   })
 

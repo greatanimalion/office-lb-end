@@ -4,7 +4,8 @@ interface DatabaseConfig {
   synchronize: boolean
   logging: boolean
 }
-
+import dotenv from 'dotenv'
+dotenv.config()
 const database: DatabaseConfig = {
   type: 'sqlite',
   database: process.env.DB_DATABASE || 'database.sqlite',

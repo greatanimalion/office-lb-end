@@ -1,6 +1,7 @@
 import { generateEditorConfig, handleCallback } from '../services/onlyoffice.service.js';
 import { getDocumentById } from '../services/document.service.js';
 import logger from '../utils/logger.js';
+import _config from '../config/index.js';
 export const getEditorConfigController = async (req, res) => {
     try {
         const documentId = parseInt(req.params.documentId, 10);
@@ -14,7 +15,7 @@ export const getEditorConfigController = async (req, res) => {
             res.status(404).json({ error: '文档不存在或无权访问' });
             return;
         }
-        const config = generateEditorConfig(document.id, document.title, `http://localhost:5000/api/documents/${document.id}/download`, document.filename.split('.').pop() || 'docx', `http://localhost:5000/api/onlyoffice/${document.id}/callback`, true);
+        const config = generateEditorConfig(document.id, document.title, `http://localhost:${_config.port}/api/documents/${document.id}/download`, document.filename.split('.').pop() || 'docx', `http://localhost:${_config.port}/api/onlyoffice/${document.id}/callback`, true);
         res.json(config);
     }
     catch (error) {

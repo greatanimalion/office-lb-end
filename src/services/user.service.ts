@@ -71,20 +71,17 @@ export const login = async (username: string, password: string): Promise<LoginRe
 export const register = async (
   username: string,
   email: string,
-  password: string
+  password: string,
 ): Promise<{ success: boolean; id?: number; error?: string }> => {
   const db = getDB()
-
   if (!db) {
     return { success: false, error: '数据库未初始化' }
   }
-
   try {
     const hashedPassword = bcrypt.hashSync(password, config.auth.bcryptSaltRounds)
     db.run(
       `INSERT INTO users (username, email, password) VALUES ("${username}", "${email}", "${hashedPassword}")`
     )
-
     const lastIdResult = db.exec('SELECT last_insert_rowid()')
     const lastId = lastIdResult[0].values[0][0] as number
 

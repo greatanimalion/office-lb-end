@@ -33,6 +33,22 @@ export const authLimiter = rateLimit({
   }
 })
 
+export const codeLimiter = rateLimit({
+  windowMs:   60 * 1000,
+  max: 1,
+  message: {
+    error: '验证码请求过于频繁，请1分钟后再试'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  handler: (_req: Request, res: Response) => {
+    res.status(429).json({
+      error: '验证码请求过于频繁，请15分钟后再试'
+    })
+  }
+})
+
 export const uploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 20,

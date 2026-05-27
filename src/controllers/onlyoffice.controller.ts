@@ -2,7 +2,7 @@ import { Request, Response } from 'express'
 import { generateEditorConfig, handleCallback } from '../services/onlyoffice.service.js'
 import { getDocumentById } from '../services/document.service.js'
 import logger from '../utils/logger.js'
-
+import _config from '../config/index.js'
 export const getEditorConfigController = async (
   req: Request,
   res: Response
@@ -26,9 +26,9 @@ export const getEditorConfigController = async (
     const config = generateEditorConfig(
       document.id,
       document.title,
-      `http://localhost:5000/api/documents/${document.id}/download`,
+      `http://localhost:${_config.port}/api/documents/${document.id}/download`,
       document.filename.split('.').pop() || 'docx',
-      `http://localhost:5000/api/onlyoffice/${document.id}/callback`,
+      `http://localhost:${_config.port}/api/onlyoffice/${document.id}/callback`,
       true
     )
 

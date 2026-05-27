@@ -50,7 +50,7 @@ export const startServer = async () => {
     const app = createApp();
     await initMeiliSearch();
     const server = app.listen(config.port, () => {
-        logger.info(`Server running on port ${config.port}`);
+        logger.info(`Server running on port ${config.port} http://localhost:${config.port}`);
         logger.info(`Environment: ${config.nodeEnv}`);
     });
     const gracefulShutdown = (signal) => {

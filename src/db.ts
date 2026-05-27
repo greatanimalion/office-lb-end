@@ -180,6 +180,18 @@ export const initDB = async (): Promise<void> => {
       )
     `)
 
+    db.run(`
+      CREATE TABLE verification_codes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT NOT NULL,
+        type TEXT NOT NULL,
+        target TEXT NOT NULL,
+        expires_at DATETIME NOT NULL,
+        used INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+
     saveDB()
   }
 }

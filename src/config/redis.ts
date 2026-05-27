@@ -4,7 +4,8 @@ interface RedisConfig {
   password?: string
   db: number
 }
-
+import dotenv from 'dotenv'
+dotenv.config()
 const redis: RedisConfig = {
   host: process.env.REDIS_HOST || 'localhost',
   port: parseInt(process.env.REDIS_PORT || '6379', 10),

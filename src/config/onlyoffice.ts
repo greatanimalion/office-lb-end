@@ -4,7 +4,8 @@ interface OnlyOfficeConfig {
   jwtHeader: string
   jwtTokenPrefix: string
 }
-
+import dotenv from 'dotenv'
+dotenv.config()
 const onlyoffice: OnlyOfficeConfig = {
   documentServerUrl: process.env.ONLYOFFICE_DOCUMENT_SERVER_URL || 'https://localhost',
   jwtSecret: process.env.ONLYOFFICE_JWT_SECRET || 'your-secret-key',

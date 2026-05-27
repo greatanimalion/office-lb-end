@@ -19,8 +19,6 @@ import {
 import { getStoragePath } from '../utils/file.js'
 import logger from '../utils/logger.js'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
 const getUserId = (req: Request): number => {
   return (req.user as { id: number })?.id
 }

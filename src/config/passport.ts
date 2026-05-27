@@ -4,7 +4,8 @@ import { Strategy as OAuth2Strategy } from 'passport-oauth2'
 import config from './auth.js'
 import { createOrGetUser, User } from '../services/user.service'
 import logger from '../utils/logger.js'
-
+import dotenv from 'dotenv'
+dotenv.config()
 passport.serializeUser((user: Express.User, done) => {
   const u = user as User
   done(null, u.id)

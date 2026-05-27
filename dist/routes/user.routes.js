@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { loginController, registerController, getUsersController, getUserByIdController } from '../controllers/user.controller';
+import { sendVerificationCodeController, verifyCodeController, getCodeController, resendCodeController } from '../controllers/verification.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 import { authLimiter } from '../middlewares/rateLimit.middleware';
 const router = Router();
@@ -7,4 +8,8 @@ router.post('/login', authLimiter, loginController);
 router.post('/register', authLimiter, registerController);
 router.get('/users', authenticate, getUsersController);
 router.get('/users/:id', authenticate, getUserByIdController);
+router.post('/verification/send', authLimiter, sendVerificationCodeController);
+router.post('/verification/verify', authLimiter, verifyCodeController);
+router.get('/verification/status', authLimiter, getCodeController);
+router.post('/verification/resend', authLimiter, resendCodeController);
 export default router;

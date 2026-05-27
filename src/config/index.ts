@@ -1,12 +1,11 @@
 import dotenv from 'dotenv'
+dotenv.config()
 import database from './database'
 import redis from './redis'
 import onlyoffice from './onlyoffice'
 import meilisearch from './meilisearch'
 import auth from './auth'
-
-dotenv.config()
-
+import email from './email'
 interface UploadsConfig {
   temp: string
   documents: string
@@ -21,6 +20,7 @@ interface LogsConfig {
 }
 
 interface Config {
+  email: typeof email
   port: number
   nodeEnv: string
   database: typeof database
@@ -40,6 +40,7 @@ const config: Config = {
   onlyoffice,
   meilisearch,
   auth,
+  email,
   uploads: {
     temp: process.env.UPLOAD_TEMP_DIR || 'uploads/temp',
     documents: process.env.UPLOAD_DOCUMENTS_DIR || 'uploads/documents',

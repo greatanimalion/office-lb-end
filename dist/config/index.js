@@ -4,6 +4,7 @@ import redis from './redis';
 import onlyoffice from './onlyoffice';
 import meilisearch from './meilisearch';
 import auth from './auth';
+import email from './email';
 dotenv.config();
 const config = {
     port: parseInt(process.env.PORT || '5000', 10),
@@ -13,6 +14,7 @@ const config = {
     onlyoffice,
     meilisearch,
     auth,
+    email,
     uploads: {
         temp: process.env.UPLOAD_TEMP_DIR || 'uploads/temp',
         documents: process.env.UPLOAD_DOCUMENTS_DIR || 'uploads/documents',
