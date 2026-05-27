@@ -19,7 +19,6 @@ export const loginController = async (
       res.status(401).json({ message: result.error })
       return
     }
-
     res.json({
       token: result.token,
       user: result.user

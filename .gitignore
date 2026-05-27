@@ -3,4 +3,4 @@ dist
 logs
 .env
 .env.example
-.database.sqlite
+database.sqlite
