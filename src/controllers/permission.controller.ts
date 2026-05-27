@@ -1,10 +1,9 @@
-import { Response } from 'express'
-import { AuthenticatedRequest } from '../middlewares/auth.middleware.js'
+import { Request, Response } from 'express'
 import { PermissionType } from '../constants/permission.js'
 import logger from '../utils/logger.js'
 
 export const getPermissionsController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {
@@ -23,7 +22,7 @@ export const getPermissionsController = async (
 }
 
 export const setPermissionController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {
@@ -48,7 +47,7 @@ export const setPermissionController = async (
 }
 
 export const removePermissionController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {

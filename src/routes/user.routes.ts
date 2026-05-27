@@ -8,11 +8,11 @@ import {
 import { authenticate } from '../middlewares/auth.middleware'
 import { authLimiter } from '../middlewares/rateLimit.middleware'
 
-const router: import('express').Router = Router()
+const router = Router()
 
-router.post('/login', authLimiter, loginController)
-router.post('/register', authLimiter, registerController)
-router.get('/users', authenticate, getUsersController)
-router.get('/users/:id', authenticate, getUserByIdController)
+router.post('/login', authLimiter, loginController as any)
+router.post('/register', authLimiter, registerController as any)
+router.get('/users', authenticate, getUsersController as any)
+router.get('/users/:id', authenticate, getUserByIdController as any)
 
 export default router

@@ -1,7 +1,6 @@
-import { Response } from 'express'
+import { Request, Response } from 'express'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { AuthenticatedRequest } from '../middlewares/auth.middleware.js'
 import {
   getDocumentsByOwner,
   getSharedDocuments,
@@ -11,19 +10,27 @@ import {
   deleteDocument,
   shareDocument,
   unshareDocument,
-  trackDocumentUpdate
+  trackDocumentUpdate,
+  getDocumentVersions,
+  restoreDocumentVersion,
+  lockDocument,
+  unlockDocument
 } from '../services/document.service.js'
 import { getStoragePath } from '../utils/file.js'
 import logger from '../utils/logger.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+const getUserId = (req: Request): number => {
+  return (req.user as { id: number })?.id
+}
+
 export const getDocumentsController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    const userId = req.user!.id
+    const userId = getUserId(req)
     const documents = await getDocumentsByOwner(userId)
     res.json(documents)
   } catch (error) {
@@ -33,11 +40,11 @@ export const getDocumentsController = async (
 }
 
 export const getSharedDocumentsController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    const userId = req.user!.id
+    const userId = getUserId(req)
     const documents = await getSharedDocuments(userId)
     res.json(documents)
   } catch (error) {
@@ -47,12 +54,12 @@ export const getSharedDocumentsController = async (
 }
 
 export const getDocumentController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const documentId = parseInt(req.params.id, 10)
-    const userId = req.user!.id
+    const userId = getUserId(req)
 
     if (isNaN(documentId)) {
       res.status(400).json({ error: '无效的文档ID' })
@@ -74,13 +81,13 @@ export const getDocumentController = async (
 }
 
 export const createDocumentController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const { title } = req.body
     const file = req.file
-    const userId = req.user!.id
+    const userId = getUserId(req)
 
     if (!file) {
       res.status(400).json({ error: '请上传文件' })
@@ -107,13 +114,13 @@ export const createDocumentController = async (
 }
 
 export const updateDocumentController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const documentId = parseInt(req.params.id, 10)
     const { title } = req.body
-    const userId = req.user!.id
+    const userId = getUserId(req)
 
     if (isNaN(documentId)) {
       res.status(400).json({ error: '无效的文档ID' })
@@ -135,12 +142,12 @@ export const updateDocumentController = async (
 }
 
 export const deleteDocumentController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const documentId = parseInt(req.params.id, 10)
-    const userId = req.user!.id
+    const userId = getUserId(req)
 
     if (isNaN(documentId)) {
       res.status(400).json({ error: '无效的文档ID' })
@@ -162,13 +169,13 @@ export const deleteDocumentController = async (
 }
 
 export const shareDocumentController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const documentId = parseInt(req.params.id, 10)
     const { userId, permission } = req.body
-    const currentUserId = req.user!.id
+    const currentUserId = getUserId(req)
 
     if (isNaN(documentId)) {
       res.status(400).json({ error: '无效的文档ID' })
@@ -190,13 +197,13 @@ export const shareDocumentController = async (
 }
 
 export const unshareDocumentController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const documentId = parseInt(req.params.id, 10)
     const targetUserId = parseInt(req.params.userId, 10)
-    const currentUserId = req.user!.id
+    const currentUserId = getUserId(req)
 
     if (isNaN(documentId) || isNaN(targetUserId)) {
       res.status(400).json({ error: '无效的参数' })
@@ -218,12 +225,12 @@ export const unshareDocumentController = async (
 }
 
 export const downloadDocumentController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const documentId = parseInt(req.params.id, 10)
-    const userId = req.user!.id
+    const userId = getUserId(req)
 
     if (isNaN(documentId)) {
       res.status(400).json({ error: '无效的文档ID' })
@@ -245,22 +252,132 @@ export const downloadDocumentController = async (
 }
 
 export const trackDocumentController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const documentId = parseInt(req.params.id, 10)
+    const userId = getUserId(req)
 
     if (isNaN(documentId)) {
       res.status(400).json({ error: '无效的文档ID' })
       return
     }
 
-    await trackDocumentUpdate(documentId)
+    await trackDocumentUpdate(documentId, userId)
 
     res.json({ success: true })
   } catch (error) {
     logger.error('Track document error:', error)
     res.status(500).json({ error: '更新文档跟踪失败' })
+  }
+}
+
+export const getDocumentVersionsController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const documentId = parseInt(req.params.id, 10)
+    const userId = getUserId(req)
+
+    if (isNaN(documentId)) {
+      res.status(400).json({ error: '无效的文档ID' })
+      return
+    }
+
+    const document = await getDocumentById(documentId, userId)
+    if (!document) {
+      res.status(404).json({ error: '文档不存在或无权访问' })
+      return
+    }
+
+    const versions = await getDocumentVersions(documentId)
+    res.json(versions)
+  } catch (error) {
+    logger.error('Get document versions error:', error)
+    res.status(500).json({ error: '获取文档版本失败' })
+  }
+}
+
+export const restoreDocumentVersionController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const documentId = parseInt(req.params.id, 10)
+    const versionNumber = parseInt(req.params.version, 10)
+    const userId = getUserId(req)
+
+    if (isNaN(documentId) || isNaN(versionNumber)) {
+      res.status(400).json({ error: '无效的参数' })
+      return
+    }
+
+    const success = await restoreDocumentVersion(documentId, versionNumber, userId)
+
+    if (!success) {
+      res.status(403).json({ error: '无权恢复此版本或版本不存在' })
+      return
+    }
+
+    res.json({ success: true })
+  } catch (error) {
+    logger.error('Restore document version error:', error)
+    res.status(500).json({ error: '恢复文档版本失败' })
+  }
+}
+
+export const lockDocumentController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const documentId = parseInt(req.params.id, 10)
+    const userId = getUserId(req)
+
+    if (isNaN(documentId)) {
+      res.status(400).json({ error: '无效的文档ID' })
+      return
+    }
+
+    const success = await lockDocument(documentId, userId)
+
+    if (!success) {
+      res.status(403).json({ error: '无权锁定此文档或文档已被锁定' })
+      return
+    }
+
+    res.json({ success: true })
+  } catch (error) {
+    logger.error('Lock document error:', error)
+    res.status(500).json({ error: '锁定文档失败' })
+  }
+}
+
+export const unlockDocumentController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const documentId = parseInt(req.params.id, 10)
+    const userId = getUserId(req) 
+
+    if (isNaN(documentId)) {
+      res.status(400).json({ error: '无效的文档ID' })
+      return
+    }
+
+    const success = await unlockDocument(documentId, userId)
+
+    if (!success) {
+      res.status(403).json({ error: '无权解锁此文档' })
+      return
+    }
+
+    res.json({ success: true })
+  } catch (error) {
+    logger.error('Unlock document error:', error)
+    res.status(500).json({ error: '解锁文档失败' })
   }
 }

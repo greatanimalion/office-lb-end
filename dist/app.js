@@ -2,12 +2,16 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import passport from 'passport';
+import session from 'express-session';
 import config from './config/index';
 import routes from './routes/index';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
 import { apiLimiter } from './middlewares/rateLimit.middleware';
 import { ensureDirectoryExists } from './utils/file';
 import logger from './utils/logger';
+import { initMeiliSearch } from './services/search.service';
+import './config/passport';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 export const createApp = () => {
@@ -20,6 +24,18 @@ export const createApp = () => {
     ensureDirectoryExists(config.uploads.versions);
     ensureDirectoryExists(config.uploads.previews);
     ensureDirectoryExists(config.logs.dir);
+    app.use(session({
+        secret: config.auth.sessionSecret,
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+            secure: config.nodeEnv === 'production',
+            httpOnly: true,
+            maxAge: 24 * 60 * 60 * 1000
+        }
+    }));
+    app.use(passport.initialize());
+    app.use(passport.session());
     app.use(express.static(path.join(__dirname, '../public')));
     app.use('/api', apiLimiter);
     app.use('/api', routes);
@@ -32,6 +48,7 @@ export const createApp = () => {
 };
 export const startServer = async () => {
     const app = createApp();
+    await initMeiliSearch();
     const server = app.listen(config.port, () => {
         logger.info(`Server running on port ${config.port}`);
         logger.info(`Environment: ${config.nodeEnv}`);

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
-import { verifyToken } from '../utils/jwt.js'
-import { getUserById } from '../services/user.service.js'
+import { verifyToken } from '../services/jwt.service'
+import { getUserById } from '../services/user.service'
 import logger from '../utils/logger.js'
 
 export interface AuthenticatedRequest extends Request {
@@ -12,7 +12,7 @@ export interface AuthenticatedRequest extends Request {
 }
 
 export const authenticate = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -26,14 +26,18 @@ export const authenticate = async (
 
   try {
     const decoded = verifyToken(token)
-    const user = await getUserById(decoded.id)
+    if (!decoded) {
+      res.status(403).json({ error: '无效的访问令牌' })
+      return
+    }
+    const user = await getUserById(decoded.userId)
 
     if (!user) {
       res.status(403).json({ error: '用户不存在' })
       return
     }
 
-    req.user = {
+    (req as AuthenticatedRequest).user = {
       id: user.id,
       username: user.username,
       role: user.role
@@ -47,7 +51,7 @@ export const authenticate = async (
 }
 
 export const optionalAuth = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -61,10 +65,14 @@ export const optionalAuth = async (
 
   try {
     const decoded = verifyToken(token)
-    const user = await getUserById(decoded.id)
+    if (!decoded) {
+      res.status(403).json({ error: '无效的访问令牌' })
+      return
+    }
+    const user = await getUserById(decoded.userId)
 
     if (user) {
-      req.user = {
+      (req as AuthenticatedRequest).user = {
         id: user.id,
         username: user.username,
         role: user.role

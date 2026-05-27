@@ -1,8 +1,11 @@
 import logger from '../utils/logger.js';
+const getUserId = (req) => {
+    return req.user?.id;
+};
 export const createFolderController = async (req, res) => {
     try {
         const { name, parentId } = req.body;
-        const userId = req.user.id;
+        const userId = getUserId(req);
         if (!name) {
             res.status(400).json({ error: '文件夹名称不能为空' });
             return;
@@ -16,7 +19,7 @@ export const createFolderController = async (req, res) => {
 };
 export const getFoldersController = async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = req.user?.id;
         const folders = [];
         res.json(folders);
     }

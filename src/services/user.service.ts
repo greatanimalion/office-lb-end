@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs'
-import { getDB, saveDB, User } from '../db'
+import { getDB, saveDB, type User } from '../db'
 import { generateToken } from '../utils/jwt'
 import config from '../config/index'
 
@@ -12,6 +12,15 @@ export interface LoginResult {
     role: string
   }
   error?: string
+}
+
+export interface CreateUserOptions {
+  username: string
+  email: string
+  role?: string
+  provider?: string
+  providerId?: string
+  password?: string
 }
 
 export const login = async (username: string, password: string): Promise<LoginResult> => {
@@ -88,6 +97,53 @@ export const register = async (
   }
 }
 
+export const createOrGetUser = async (options: CreateUserOptions): Promise<User> => {
+  const db = getDB()
+
+  if (!db) {
+    throw new Error('数据库未初始化')
+  }
+
+  const { username, email, role = 'user', provider, providerId } = options
+
+  if (provider && providerId) {
+    const existingResult = db.exec(
+      `SELECT * FROM users WHERE provider = "${provider}" AND provider_id = "${providerId}"`
+    )
+    
+    if (existingResult.length > 0 && existingResult[0].values.length > 0) {
+      const row = existingResult[0].values[0]
+      return {
+        id: row[0] as number,
+        username: row[1] as string,
+        email: row[2] as string,
+        password: row[3] as string,
+        role: row[4] as string
+      }
+    }
+  }
+
+  const randomPassword = bcrypt.hashSync(Math.random().toString(36).substr(2, 11), config.auth.bcryptSaltRounds)
+  
+  db.run(
+    `INSERT INTO users (username, email, password, role, provider, provider_id) 
+     VALUES ("${username}", "${email}", "${randomPassword}", "${role}", "${provider || ''}", "${providerId || ''}")`
+  )
+
+  const lastIdResult = db.exec('SELECT last_insert_rowid()')
+  const lastId = lastIdResult[0].values[0][0] as number
+
+  saveDB()
+
+  return {
+    id: lastId,
+    username,
+    email,
+    password: randomPassword,
+    role
+  }
+}
+
 export const getUserById = async (id: number): Promise<User | null> => {
   const db = getDB()
 
@@ -135,3 +191,5 @@ export const getAllUsers = async (): Promise<User[]> => {
 
   return users
 }
+
+export { User }

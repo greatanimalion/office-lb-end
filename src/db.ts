@@ -15,6 +15,42 @@ export interface User {
   email: string
   password: string
   role: string
+  provider?: string
+  providerId?: string
+}
+
+export interface Document {
+  id: number
+  title: string
+  filename: string
+  filepath: string
+  ownerId: number
+  status: string
+  locked: boolean
+  lockedBy?: number
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface DocumentVersion {
+  id: number
+  documentId: number
+  versionNumber: number
+  filepath: string
+  createdAt: Date
+  createdBy: number
+}
+
+export interface ShareLink {
+  id: number
+  documentId: number
+  token: string
+  password?: string
+  expiresAt?: Date
+  maxViews: number
+  views: number
+  permissions: string
+  createdAt: Date
 }
 
 export const initDB = async (): Promise<void> => {
@@ -23,6 +59,12 @@ export const initDB = async (): Promise<void> => {
   if (fs.existsSync(DB_PATH)) {
     const buffer = fs.readFileSync(DB_PATH)
     db = new SQL.Database(buffer)
+    
+    db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS provider TEXT`)
+    db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS provider_id TEXT`)
+    db.run(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active'`)
+    db.run(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS locked INTEGER DEFAULT 0`)
+    db.run(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS locked_by INTEGER`)
   } else {
     db = new SQL.Database()
     db.run(`
@@ -31,7 +73,9 @@ export const initDB = async (): Promise<void> => {
         username TEXT UNIQUE NOT NULL,
         email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
-        role TEXT DEFAULT 'user'
+        role TEXT DEFAULT 'user',
+        provider TEXT,
+        provider_id TEXT
       )
     `)
 
@@ -42,9 +86,25 @@ export const initDB = async (): Promise<void> => {
         filename TEXT NOT NULL,
         filepath TEXT NOT NULL,
         owner_id INTEGER NOT NULL,
+        status TEXT DEFAULT 'active',
+        locked INTEGER DEFAULT 0,
+        locked_by INTEGER,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (owner_id) REFERENCES users(id)
+      )
+    `)
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS document_versions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        document_id INTEGER NOT NULL,
+        version_number INTEGER NOT NULL,
+        filepath TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_by INTEGER NOT NULL,
+        FOREIGN KEY (document_id) REFERENCES documents(id),
+        FOREIGN KEY (created_by) REFERENCES users(id)
       )
     `)
 
@@ -62,6 +122,21 @@ export const initDB = async (): Promise<void> => {
     `)
 
     db.run(`
+      CREATE TABLE IF NOT EXISTS share_links (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        document_id INTEGER NOT NULL,
+        token TEXT UNIQUE NOT NULL,
+        password TEXT,
+        expires_at DATETIME,
+        max_views INTEGER DEFAULT 0,
+        views INTEGER DEFAULT 0,
+        permissions TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (document_id) REFERENCES documents(id)
+      )
+    `)
+
+    db.run(`
       CREATE TABLE IF NOT EXISTS audit_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -74,6 +149,18 @@ export const initDB = async (): Promise<void> => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id),
         FOREIGN KEY (document_id) REFERENCES documents(id)
+      )
+    `)
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS upload_sessions (
+        file_id TEXT PRIMARY KEY,
+        filename TEXT NOT NULL,
+        filesize INTEGER NOT NULL,
+        total_chunks INTEGER NOT NULL,
+        uploaded_chunks TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `)
 

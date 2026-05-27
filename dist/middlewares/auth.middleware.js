@@ -1,5 +1,5 @@
-import { verifyToken } from '../utils/jwt.js';
-import { getUserById } from '../services/user.service.js';
+import { verifyToken } from '../services/jwt.service';
+import { getUserById } from '../services/user.service';
 import logger from '../utils/logger.js';
 export const authenticate = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -10,7 +10,11 @@ export const authenticate = async (req, res, next) => {
     }
     try {
         const decoded = verifyToken(token);
-        const user = await getUserById(decoded.id);
+        if (!decoded) {
+            res.status(403).json({ error: '无效的访问令牌' });
+            return;
+        }
+        const user = await getUserById(decoded.userId);
         if (!user) {
             res.status(403).json({ error: '用户不存在' });
             return;
@@ -36,7 +40,11 @@ export const optionalAuth = async (req, res, next) => {
     }
     try {
         const decoded = verifyToken(token);
-        const user = await getUserById(decoded.id);
+        if (!decoded) {
+            res.status(403).json({ error: '无效的访问令牌' });
+            return;
+        }
+        const user = await getUserById(decoded.userId);
         if (user) {
             req.user = {
                 id: user.id,

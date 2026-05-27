@@ -1,11 +1,10 @@
-import { Response } from 'express'
-import { AuthenticatedRequest } from '../middlewares/auth.middleware.js'
+import { Request, Response } from 'express'
 import { getAuditLogs, AuditLog } from '../services/audit.service.js'
 import { AuditAction } from '../constants/audit.js'
 import logger from '../utils/logger.js'
 
 export const getAuditLogsController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {

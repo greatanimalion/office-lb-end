@@ -1,49 +1,178 @@
-import sharp from 'sharp';
+import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { getStoragePath, ensureDirectoryExists } from '../utils/file';
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const applyWatermark = async (imagePath, watermark) => {
-    const { text, fontSize = 48, color = '#cccccc', opacity = 0.3, rotate = -45 } = watermark;
-    const svgText = `
-    <svg width="400" height="300">
-      <style>
-        .watermark {
-          font-size: ${fontSize}px;
-          font-family: Arial, sans-serif;
-          fill: ${color};
-          opacity: ${opacity};
+import logger from '../utils/logger';
+export const addTextWatermark = (inputPath, outputPath, options) => {
+    try {
+        if (!fs.existsSync(inputPath)) {
+            return false;
         }
-      </style>
-      <text
-        x="50%"
-        y="50%"
-        text-anchor="middle"
-        dominant-baseline="middle"
-        transform="rotate(${rotate}, 200, 150)"
-        class="watermark"
-      >${text}</text>
-    </svg>
-  `;
-    const watermarkBuffer = Buffer.from(svgText);
-    const outputFilename = `watermarked_${Date.now()}.png`;
-    const outputPath = path.join(getStoragePath(), 'previews', outputFilename);
-    ensureDirectoryExists(path.dirname(outputPath));
-    const image = sharp(imagePath);
-    const metadata = await image.metadata();
-    await image
-        .composite([
-        {
-            input: await sharp(watermarkBuffer)
-                .resize(metadata.width || 800, metadata.height || 600)
-                .toBuffer(),
-            blend: 'over'
+        const timestamp = options.timestamp || new Date();
+        const username = options.username || `User_${options.userId}`;
+        let watermarkText = options.customText;
+        if (!watermarkText) {
+            watermarkText = `© ${username} | ID: ${options.userId} | ${timestamp.toISOString()}`;
         }
-    ])
-        .toFile(outputPath);
-    return outputPath;
+        const content = fs.readFileSync(inputPath, 'utf-8');
+        const watermarkComment = `<!-- Watermark: ${watermarkText} -->`;
+        let modifiedContent = content;
+        if (content.startsWith('<?xml')) {
+            const xmlDeclarationEnd = content.indexOf('?>') + 2;
+            modifiedContent = content.slice(0, xmlDeclarationEnd) + '\n' + watermarkComment + '\n' + content.slice(xmlDeclarationEnd);
+        }
+        else if (content.startsWith('<!DOCTYPE')) {
+            const doctypeEnd = content.indexOf('>') + 1;
+            modifiedContent = content.slice(0, doctypeEnd) + '\n' + watermarkComment + '\n' + content.slice(doctypeEnd);
+        }
+        else {
+            modifiedContent = watermarkComment + '\n' + content;
+        }
+        fs.writeFileSync(outputPath, modifiedContent);
+        return true;
+    }
+    catch (error) {
+        logger.error('Add text watermark error:', error);
+        return false;
+    }
 };
-export const generateDocumentPreview = async (documentPath, outputPath) => {
-    console.log(`Generating preview for ${documentPath} at ${outputPath}`);
-    return outputPath;
+export const addDocumentWatermark = (inputPath, outputPath, options) => {
+    const ext = path.extname(inputPath).toLowerCase();
+    switch (ext) {
+        case '.xml':
+        case '.html':
+        case '.htm':
+        case '.svg':
+        case '.txt':
+            return addTextWatermark(inputPath, outputPath, options);
+        case '.docx':
+            return addDocxWatermark(inputPath, outputPath, options);
+        default:
+            return addGenericWatermark(inputPath, outputPath, options);
+    }
+};
+const addDocxWatermark = (inputPath, outputPath, options) => {
+    try {
+        if (!fs.existsSync(inputPath)) {
+            return false;
+        }
+        fs.copyFileSync(inputPath, outputPath);
+        const timestamp = options.timestamp || new Date();
+        const username = options.username || `User_${options.userId}`;
+        const watermarkText = options.customText || `© ${username} | ID: ${options.userId} | ${timestamp.toISOString()}`;
+        const admZip = require('adm-zip');
+        const zip = new admZip(outputPath);
+        const xmlContent = zip.readAsText('word/document.xml');
+        if (xmlContent) {
+            const watermarkComment = `<!-- Watermark: ${watermarkText} -->`;
+            const updatedContent = xmlContent.replace(/(<w:body>)/, `$1${watermarkComment}\n`);
+            zip.updateFile('word/document.xml', Buffer.from(updatedContent, 'utf-8'));
+            zip.writeZip(outputPath);
+        }
+        return true;
+    }
+    catch (error) {
+        logger.error('Add docx watermark error:', error);
+        return false;
+    }
+};
+const addGenericWatermark = (inputPath, outputPath, options) => {
+    try {
+        if (!fs.existsSync(inputPath)) {
+            return false;
+        }
+        const timestamp = options.timestamp || new Date();
+        const username = options.username || `User_${options.userId}`;
+        const watermarkText = options.customText || `© ${username} | ID: ${options.userId} | ${timestamp.toISOString()}`;
+        const watermarkBuffer = Buffer.from(`\n\n/* Watermark: ${watermarkText} */\n`);
+        const inputBuffer = fs.readFileSync(inputPath);
+        const outputBuffer = Buffer.concat([inputBuffer, watermarkBuffer]);
+        fs.writeFileSync(outputPath, outputBuffer);
+        return true;
+    }
+    catch (error) {
+        logger.error('Add generic watermark error:', error);
+        return false;
+    }
+};
+export const generateWatermarkText = (options) => {
+    const timestamp = options.timestamp || new Date();
+    const username = options.username || `User_${options.userId}`;
+    return `User: ${username} | ID: ${options.userId} | AccessTime: ${timestamp.toLocaleString('zh-CN')}`;
+};
+export const extractWatermarkInfo = (filePath) => {
+    try {
+        if (!fs.existsSync(filePath)) {
+            return null;
+        }
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const watermarkMatch = content.match(/<!-- Watermark:.*?User:\s*([^|]*?)\s*\|\s*ID:\s*(\d+)\s*\|\s*.*?AccessTime:\s*(.+?)-->/s);
+        if (watermarkMatch) {
+            return {
+                userId: parseInt(watermarkMatch[2], 10),
+                username: watermarkMatch[1].trim(),
+                timestamp: new Date(watermarkMatch[3].trim()),
+                appliedAt: new Date()
+            };
+        }
+        const simpleMatch = content.match(/Watermark:\s*.*?ID:\s*(\d+)/);
+        if (simpleMatch) {
+            return {
+                userId: parseInt(simpleMatch[1], 10),
+                timestamp: new Date(),
+                appliedAt: new Date()
+            };
+        }
+        return null;
+    }
+    catch (error) {
+        logger.error('Extract watermark info error:', error);
+        return null;
+    }
+};
+export const verifyWatermark = (filePath, expectedUserId) => {
+    const watermarkInfo = extractWatermarkInfo(filePath);
+    if (!watermarkInfo) {
+        return false;
+    }
+    return watermarkInfo.userId === expectedUserId;
+};
+export const removeWatermark = (filePath, outputPath) => {
+    try {
+        if (!fs.existsSync(filePath)) {
+            return false;
+        }
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const cleanedContent = content
+            .replace(/<!-- Watermark:.*?-->\s*/g, '')
+            .replace(/\/\* Watermark:.*?\*\/\s*/g, '')
+            .trim();
+        fs.writeFileSync(outputPath, cleanedContent);
+        return true;
+    }
+    catch (error) {
+        logger.error('Remove watermark error:', error);
+        return false;
+    }
+};
+export const generateAccessToken = (userId, documentId, expiresInMinutes = 60) => {
+    const payload = {
+        userId,
+        documentId,
+        expiresAt: Date.now() + expiresInMinutes * 60 * 1000,
+        token: Math.random().toString(36).substr(2, 15)
+    };
+    return Buffer.from(JSON.stringify(payload)).toString('base64');
+};
+export const validateAccessToken = (token) => {
+    try {
+        const decoded = Buffer.from(token, 'base64').toString('utf-8');
+        const payload = JSON.parse(decoded);
+        if (payload.expiresAt && payload.expiresAt > Date.now()) {
+            return { userId: payload.userId, documentId: payload.documentId, valid: true };
+        }
+        return { userId: 0, documentId: 0, valid: false };
+    }
+    catch (error) {
+        logger.error('Validate access token error:', error);
+        return { userId: 0, documentId: 0, valid: false };
+    }
 };

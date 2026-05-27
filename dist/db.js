@@ -11,6 +11,11 @@ export const initDB = async () => {
     if (fs.existsSync(DB_PATH)) {
         const buffer = fs.readFileSync(DB_PATH);
         db = new SQL.Database(buffer);
+        db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS provider TEXT`);
+        db.run(`ALTER TABLE users ADD COLUMN IF NOT EXISTS provider_id TEXT`);
+        db.run(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active'`);
+        db.run(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS locked INTEGER DEFAULT 0`);
+        db.run(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS locked_by INTEGER`);
     }
     else {
         db = new SQL.Database();
@@ -20,7 +25,9 @@ export const initDB = async () => {
         username TEXT UNIQUE NOT NULL,
         email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
-        role TEXT DEFAULT 'user'
+        role TEXT DEFAULT 'user',
+        provider TEXT,
+        provider_id TEXT
       )
     `);
         db.run(`
@@ -30,9 +37,24 @@ export const initDB = async () => {
         filename TEXT NOT NULL,
         filepath TEXT NOT NULL,
         owner_id INTEGER NOT NULL,
+        status TEXT DEFAULT 'active',
+        locked INTEGER DEFAULT 0,
+        locked_by INTEGER,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (owner_id) REFERENCES users(id)
+      )
+    `);
+        db.run(`
+      CREATE TABLE IF NOT EXISTS document_versions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        document_id INTEGER NOT NULL,
+        version_number INTEGER NOT NULL,
+        filepath TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_by INTEGER NOT NULL,
+        FOREIGN KEY (document_id) REFERENCES documents(id),
+        FOREIGN KEY (created_by) REFERENCES users(id)
       )
     `);
         db.run(`
@@ -48,6 +70,20 @@ export const initDB = async () => {
       )
     `);
         db.run(`
+      CREATE TABLE IF NOT EXISTS share_links (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        document_id INTEGER NOT NULL,
+        token TEXT UNIQUE NOT NULL,
+        password TEXT,
+        expires_at DATETIME,
+        max_views INTEGER DEFAULT 0,
+        views INTEGER DEFAULT 0,
+        permissions TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (document_id) REFERENCES documents(id)
+      )
+    `);
+        db.run(`
       CREATE TABLE IF NOT EXISTS audit_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -60,6 +96,17 @@ export const initDB = async () => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id),
         FOREIGN KEY (document_id) REFERENCES documents(id)
+      )
+    `);
+        db.run(`
+      CREATE TABLE IF NOT EXISTS upload_sessions (
+        file_id TEXT PRIMARY KEY,
+        filename TEXT NOT NULL,
+        filesize INTEGER NOT NULL,
+        total_chunks INTEGER NOT NULL,
+        uploaded_chunks TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
         saveDB();

@@ -66,6 +66,10 @@ export const mergeChunks = async (chunkPaths: string[], outputPath: string): Pro
   writeStream.end()
 }
 
-export const getStoragePath = (): string => {
-  return path.join(__dirname, '../../uploads')
+export const getStoragePath = (subdir?: string): string => {
+  const basePath = path.join(__dirname, '../../uploads')
+  if (subdir) {
+    return path.join(basePath, subdir)
+  }
+  return basePath
 }

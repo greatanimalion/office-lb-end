@@ -7,13 +7,13 @@ import {
 } from '../controllers/folder.controller'
 import { authenticate } from '../middlewares/auth.middleware'
 
-const router: import('express').Router = Router()
+const router = Router()
 
 router.use(authenticate)
 
-router.get('/', getFoldersController)
-router.post('/', createFolderController)
-router.put('/:id', updateFolderController)
-router.delete('/:id', deleteFolderController)
+router.get('/', getFoldersController as any)
+router.post('/', createFolderController as any)
+router.put('/:id', updateFolderController as any)
+router.delete('/:id', deleteFolderController as any)
 
 export default router

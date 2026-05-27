@@ -30,3 +30,13 @@ export const decrypt = (encryptedText, password) => {
 export const generateShareLinkPassword = () => {
     return crypto.randomBytes(16).toString('hex');
 };
+export const encryptPassword = async (password) => {
+    const salt = crypto.randomBytes(16).toString('hex');
+    const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+    return `${salt}:${hash}`;
+};
+export const comparePassword = async (password, hash) => {
+    const [salt, storedHash] = hash.split(':');
+    const computedHash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+    return computedHash === storedHash;
+};

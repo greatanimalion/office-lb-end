@@ -1,22 +1,21 @@
-import { Response } from 'express'
-import { AuthenticatedRequest } from '../middlewares/auth.middleware.js'
+import { Request, Response } from 'express'
 import { searchDocuments } from '../services/search.service.js'
 import logger from '../utils/logger.js'
 
 export const searchController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const { q } = req.query
-    const userId = req.user!.id
+    const userId = (req.user as { id: number })?.id
 
     if (!q || typeof q !== 'string') {
       res.status(400).json({ error: '搜索关键词不能为空' })
       return
     }
 
-    const result = await searchDocuments(q, userId)
+    const result = await searchDocuments({ query: q, author: userId })
 
     res.json(result)
   } catch (error) {

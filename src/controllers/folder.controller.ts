@@ -1,14 +1,17 @@
-import { Response } from 'express'
-import { AuthenticatedRequest } from '../middlewares/auth.middleware.js'
+import { Request, Response } from 'express'
 import logger from '../utils/logger.js'
 
+const getUserId = (req: Request): number => {
+  return (req.user as { id: number })?.id
+}
+
 export const createFolderController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const { name, parentId } = req.body
-    const userId = req.user!.id
+    const userId = getUserId(req)
 
     if (!name) {
       res.status(400).json({ error: '文件夹名称不能为空' })
@@ -23,11 +26,11 @@ export const createFolderController = async (
 }
 
 export const getFoldersController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    const userId = req.user!.id
+    const userId = (req.user as { id: number })?.id
     const folders: any[] = []
 
     res.json(folders)
@@ -38,7 +41,7 @@ export const getFoldersController = async (
 }
 
 export const updateFolderController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {
@@ -58,7 +61,7 @@ export const updateFolderController = async (
 }
 
 export const deleteFolderController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {

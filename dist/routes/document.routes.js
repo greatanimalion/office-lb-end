@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getDocumentsController, getSharedDocumentsController, getDocumentController, createDocumentController, updateDocumentController, deleteDocumentController, shareDocumentController, unshareDocumentController, downloadDocumentController, trackDocumentController } from '../controllers/document.controller.js';
+import { getDocumentsController, getSharedDocumentsController, getDocumentController, createDocumentController, updateDocumentController, deleteDocumentController, shareDocumentController, unshareDocumentController, downloadDocumentController, trackDocumentController, getDocumentVersionsController, restoreDocumentVersionController, lockDocumentController, unlockDocumentController } from '../controllers/document.controller.js';
 import { authenticate } from '../middlewares/auth.middleware';
 import { createUploadMiddleware } from '../middlewares/upload.middleware';
 const router = Router();
@@ -14,4 +14,8 @@ router.post('/:id/share', shareDocumentController);
 router.delete('/:id/share/:userId', unshareDocumentController);
 router.get('/:id/download', downloadDocumentController);
 router.post('/:id/track', trackDocumentController);
+router.get('/:id/versions', getDocumentVersionsController);
+router.post('/:id/versions/:version/restore', restoreDocumentVersionController);
+router.post('/:id/lock', lockDocumentController);
+router.post('/:id/unlock', unlockDocumentController);
 export default router;

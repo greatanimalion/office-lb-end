@@ -1,13 +1,10 @@
-interface MeilisearchConfig {
-  host: string
-  apiKey: string
-  indexName: string
-}
+import { Meilisearch } from 'meilisearch';
 
-const meilisearch: MeilisearchConfig = {
+const meilisearch = new Meilisearch({
   host: process.env.MEILISEARCH_HOST || 'http://localhost:7700',
-  apiKey: process.env.MEILISEARCH_API_KEY || '',
-  indexName: process.env.MEILISEARCH_INDEX_NAME || 'documents',
-}
+  apiKey: process.env.MEILISEARCH_API_KEY || 'masterKey'
+})
+
+export const documentsIndex = meilisearch.index('documents')
 
 export default meilisearch

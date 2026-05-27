@@ -3,8 +3,8 @@ import { getDocumentById } from '../services/document.service.js';
 import logger from '../utils/logger.js';
 export const getEditorConfigController = async (req, res) => {
     try {
-        const documentId = parseInt(req.params.id, 10);
-        const userId = req.user.id;
+        const documentId = parseInt(req.params.documentId, 10);
+        const userId = parseInt(req.params.userId, 10);
         if (isNaN(documentId)) {
             res.status(400).json({ error: '无效的文档ID' });
             return;

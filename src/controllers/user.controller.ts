@@ -1,10 +1,9 @@
-import { Response } from 'express'
-import { AuthenticatedRequest } from '../middlewares/auth.middleware.js'
+import { Request, Response } from 'express'
 import { login, register, getAllUsers, getUserById } from '../services/user.service.js'
 import logger from '../utils/logger.js'
 
 export const loginController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {
@@ -33,7 +32,7 @@ export const loginController = async (
 }
 
 export const registerController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {
@@ -59,7 +58,7 @@ export const registerController = async (
 }
 
 export const getUsersController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {
@@ -72,7 +71,7 @@ export const getUsersController = async (
 }
 
 export const getUserByIdController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {

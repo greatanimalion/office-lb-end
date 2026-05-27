@@ -6,12 +6,12 @@ import {
 } from '../controllers/permission.controller'
 import { authenticate } from '../middlewares/auth.middleware'
 
-const router: import('express').Router = Router()
+const router = Router()
 
 router.use(authenticate)
 
-router.get('/:documentId/permissions', getPermissionsController)
-router.post('/:documentId/permissions', setPermissionController)
-router.delete('/:documentId/permissions/:userId', removePermissionController)
+router.get('/:documentId/permissions', getPermissionsController as any)
+router.post('/:documentId/permissions', setPermissionController as any)
+router.delete('/:documentId/permissions/:userId', removePermissionController as any)
 
 export default router

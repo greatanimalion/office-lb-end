@@ -51,6 +51,10 @@ export const mergeChunks = async (chunkPaths, outputPath) => {
     }
     writeStream.end();
 };
-export const getStoragePath = () => {
-    return path.join(__dirname, '../../uploads');
+export const getStoragePath = (subdir) => {
+    const basePath = path.join(__dirname, '../../uploads');
+    if (subdir) {
+        return path.join(basePath, subdir);
+    }
+    return basePath;
 };

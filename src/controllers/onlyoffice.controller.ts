@@ -1,16 +1,15 @@
 import { Request, Response } from 'express'
-import { AuthenticatedRequest } from '../middlewares/auth.middleware.js'
 import { generateEditorConfig, handleCallback } from '../services/onlyoffice.service.js'
 import { getDocumentById } from '../services/document.service.js'
 import logger from '../utils/logger.js'
 
 export const getEditorConfigController = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    const documentId = parseInt(req.params.id, 10)
-    const userId = req.user!.id
+    const documentId = parseInt(req.params.documentId, 10)
+    const userId = parseInt(req.params.userId, 10)
 
     if (isNaN(documentId)) {
       res.status(400).json({ error: '无效的文档ID' })

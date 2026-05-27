@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import userRoutes from './user.routes'
+import oauthRoutes from './oauth.route'
 import documentRoutes from './document.routes'
 import folderRoutes from './folder.routes'
 import permissionRoutes from './permission.routes'
@@ -10,6 +11,7 @@ import auditRoutes from './audit.routes'
 const router: import('express').Router = Router()
 
 router.use('/auth', userRoutes)
+router.use('/oauth', oauthRoutes)
 router.use('/documents', documentRoutes)
 router.use('/folders', folderRoutes)
 router.use('/permissions', permissionRoutes)
