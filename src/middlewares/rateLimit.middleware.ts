@@ -19,7 +19,7 @@ export const apiLimiter = rateLimit({
 
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 1000,
   message: {
     error: '登录尝试过于频繁，请15分钟后再试'
   },
@@ -35,7 +35,7 @@ export const authLimiter = rateLimit({
 
 export const codeLimiter = rateLimit({
   windowMs:   60 * 1000,
-  max: 1,
+  max: 1000,
   message: {
     error: '验证码请求过于频繁，请1分钟后再试'
   },

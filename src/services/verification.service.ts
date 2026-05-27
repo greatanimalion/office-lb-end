@@ -35,7 +35,6 @@ const initRedis = async (): Promise<void> => {
 
 const initEmailTransporter = (): void => {
   if (emailTransporter) return
-  console.log(`==emailConfig.user`, emailConfig.user)
   emailTransporter = nodemailer.createTransport({
     host: emailConfig.host,
     port: emailConfig.port,
@@ -78,7 +77,6 @@ export const generateVerificationCode = async (
       return `请在 ${remainingSeconds} 秒后重试`
     }
   }
-
   await redisClient.setEx(key, expiresInSeconds, code+":"+Date.now())
   if (emailTransporter) {
     try {
@@ -96,7 +94,7 @@ export const generateVerificationCode = async (
      return '发送邮件失败'
     }
   }
-  return code
+  return '验证码发送成功'
 }
 
 export const verifyCode = async (
@@ -107,9 +105,6 @@ export const verifyCode = async (
   message?: string,
 }> => {
   try {
-    if (!email || !code) {
-      return { success: false, message: '缺少必要邮箱或验证码参数' }
-    }
     await initRedis()
     if (!redisClient) {
       return {
@@ -117,6 +112,7 @@ export const verifyCode = async (
         message: 'Redis未连接'
       }
     }
+    console.log(`==email`, email)
     const key = getRedisKey(email)
     const storedValue = await redisClient.get(key)
     if (!storedValue) {
@@ -144,8 +140,6 @@ export const verifyCode = async (
     await disconnectRedis()
   }
 }
-
-
 export const disconnectRedis = async (): Promise<void> => {
   if (redisClient) {
     await redisClient.quit()
