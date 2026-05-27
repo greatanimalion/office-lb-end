@@ -24,7 +24,11 @@ passport.use(new GitLabStrategy({
   clientSecret: config.gitlab.clientSecret,
   callbackURL: config.gitlab.callbackUrl,
   scope: ['read_user', 'openid', 'profile', 'email']
-}, async (accessToken: string, refreshToken: string, profile: { username: any; displayName: any; id: { toString: () => any }; emails: { value: any }[] }, done: (arg0: Error | null, arg1: User | null) => void) => {
+}, async (
+  accessToken: string,
+  refreshToken: string,
+  profile: { username: any; displayName: any; id: { toString: () => any }; emails: { value: any }[] },
+  done: (arg0: Error | null, arg1: User | null) => void) => {
   try {
     const user = await createOrGetUser({
       username: profile.username || profile.displayName || profile.id.toString(),
@@ -93,10 +97,10 @@ export default passport
 async function getUserById(id: number): Promise<User | null> {
   const db = await import('../db.js').then(m => m.getDB())
   if (!db) return null
-  
+
   const result = db.exec(`SELECT * FROM users WHERE id = ?`, [id])
   if (result.length === 0) return null
-  
+
   const row = result[0].values[0]
   return {
     id: row[0] as number,

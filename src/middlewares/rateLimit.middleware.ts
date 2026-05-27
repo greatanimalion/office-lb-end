@@ -3,7 +3,7 @@ import { Request, Response } from 'express'
 
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 1000,
   message: {
     error: '请求过于频繁，请稍后再试'
   },

@@ -27,28 +27,24 @@ export const createApp = (): Application => {
   ensureDirectoryExists(config.uploads.versions)
   ensureDirectoryExists(config.uploads.previews)
   ensureDirectoryExists(config.logs.dir)
-
+  
   app.use(session({
     secret: config.auth.sessionSecret,
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: false,// 不保存未初始化的会话,节省内存
     cookie: {
       secure: config.nodeEnv === 'production',
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000
     }
   }))
-
   app.use(passport.initialize())
   app.use(passport.session())
-
   app.use(express.static(path.join(__dirname, '../public')))
-
   app.use('/api', apiLimiter)
-
   app.use('/api', routes)
 
-  app.get('/health', (req, res) => {
+  app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() })
   })
 
@@ -60,9 +56,7 @@ export const createApp = (): Application => {
 
 export const startServer = async (): Promise<void> => {
   const app = createApp()
-
   await initMeiliSearch()
-
   const server = app.listen(config.port, () => {
     logger.info(`Server running on port ${config.port}`)
     logger.info(`Environment: ${config.nodeEnv}`)
