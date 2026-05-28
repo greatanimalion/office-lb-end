@@ -36,8 +36,8 @@ export const generateEditorConfig = (
   return {
     documentServerUrl: config.onlyoffice.documentServerUrl,
     jwtToken: generateToken({
-      id: documentId,
-      username: '',
+      userId: documentId,
+      email: '',
       role: ''
     }),
     type: 'desktop',

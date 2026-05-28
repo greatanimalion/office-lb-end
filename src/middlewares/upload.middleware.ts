@@ -5,8 +5,6 @@ import { fileURLToPath } from 'url'
 import { getStoragePath, isAllowedFileType } from '../utils/file'
 import { MAX_FILE_SIZE } from '../constants/document'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
 export const createUploadMiddleware = (fieldName: string = 'file'):any => {
   const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -14,12 +12,11 @@ export const createUploadMiddleware = (fieldName: string = 'file'):any => {
       cb(null, uploadPath)
     },
     filename: (req, file, cb) => {
-      const uniqueSuffix = `${Date.now()}_${Math.round(Math.random() * 1e9)}`
-      const filename = `${uniqueSuffix}_${file.originalname}`
+      const uniqueSuffix = `${Date.now()}`
+      const filename = `${uniqueSuffix}${path.extname(file.originalname)}`
       cb(null, filename)
     }
   })
-
   const fileFilter = (
     req: Express.Request,
     file: Express.Multer.File,

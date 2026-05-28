@@ -14,13 +14,28 @@ import {
   getDocumentVersions,
   restoreDocumentVersion,
   lockDocument,
-  unlockDocument
+  unlockDocument,
+  getAllDocuments
 } from '../services/document.service.js'
 import { getStoragePath } from '../utils/file.js'
 import logger from '../utils/logger.js'
 
 const getUserId = (req: Request): number => {
   return (req.user as { id: number })?.id
+}
+
+export const getAllDocumentsController = async (
+  req: Request,
+  res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string, 10) || 1
+    const pageSize = parseInt(req.query.pageSize as string, 10) || 10
+    const documents = await getAllDocuments(page, pageSize)
+    res.json(documents)
+  } catch (error) {
+    logger.error('Get all documents error:', error)
+    res.status(500).json({ error: '获取所有文档列表失败' })
+  }
 }
 
 export const getDocumentsController = async (
@@ -359,7 +374,7 @@ export const unlockDocumentController = async (
 ): Promise<void> => {
   try {
     const documentId = parseInt(req.params.id, 10)
-    const userId = getUserId(req) 
+    const userId = getUserId(req)
 
     if (isNaN(documentId)) {
       res.status(400).json({ error: '无效的文档ID' })

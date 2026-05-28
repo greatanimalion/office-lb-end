@@ -7,19 +7,11 @@ export enum DocumentStatus {
 
 export enum DocumentType {
   WORD = 'word',
-  EXCEL = 'excel',
-  POWERPOINT = 'powerpoint',
-  PDF = 'pdf',
-  TEXT = 'text',
   OTHER = 'other'
 }
 
 export const DOCUMENT_EXTENSIONS: Record<DocumentType, string[]> = {
   [DocumentType.WORD]: ['.doc', '.docx', '.odt', '.rtf'],
-  [DocumentType.EXCEL]: ['.xls', '.xlsx', '.ods', '.csv'],
-  [DocumentType.POWERPOINT]: ['.ppt', '.pptx', '.odp'],
-  [DocumentType.PDF]: ['.pdf'],
-  [DocumentType.TEXT]: ['.txt', '.md'],
   [DocumentType.OTHER]: ['.*']
 }
 
