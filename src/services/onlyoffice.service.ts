@@ -33,7 +33,7 @@ export const generateEditorConfig = (
   const key = `${documentId}_${Date.now()}`
   const documentConfig: any = {
     type: 'desktop',
-    documentServerUrl: 'http://localhost',
+    documentServerUrl: config.onlyoffice.documentServerUrl,
     editorConfig: {
       callbackUrl,
       mode: 'edit',
@@ -50,7 +50,7 @@ export const generateEditorConfig = (
     },
     document: {
       lang: "zh",
-      url: 'http://localhost:5000/test.doc',
+      url: `${config.nodeServerUrl}/api/documents/d/${documentId}`,
       title: documentTitle,
       fileType: documentTitle.split('.').pop() || 'docx',
       key

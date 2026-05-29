@@ -10,7 +10,6 @@ export const getEditorConfigController = async (
   try {
     const documentId = parseInt(req.params.documentId, 10)
     const userId = parseInt(req.params.userId, 10)
-    console.log(req.user)
     const {username,role,id}=req.user as any
     if (isNaN(documentId)) {
       res.status(400).json({ error: '无效的文档ID' })

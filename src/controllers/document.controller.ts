@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import fs from 'fs'
 import {
   getDocumentsByOwner,
   getSharedDocuments,
@@ -54,19 +55,6 @@ export const getAllDocumentsController = async (
   }
 }
 
-export const getDocumentsController = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const userId = getUserId(req)
-    const documents = await getDocumentsByOwner(userId)
-    res.json(documents)
-  } catch (error) {
-    logger.error('Get documents error:', error)
-    res.status(500).json({ error: '获取文档列表失败' })
-  }
-}
 
 export const getSharedDocumentsController = async (
   req: Request,
@@ -89,20 +77,34 @@ export const getDocumentController = async (
   try {
     const documentId = parseInt(req.params.id, 10)
     const userId = getUserId(req)
-
     if (isNaN(documentId)) {
       res.status(400).json({ error: '无效的文档ID' })
       return
     }
-
     const document = await getDocumentById(documentId, userId)
-
     if (!document) {
       res.status(404).json({ error: '文档不存在或无权访问' })
       return
     }
 
-    res.json(document)
+    const filePath = document.filepath
+    if (!fs.existsSync(filePath)) {
+      res.status(404).json({ error: '文件不存在' })
+      return console.log(filePath)
+    }
+    console.log(filePath)
+    console.log('asasasasas')
+    const stat = fs.statSync(filePath)
+    const contentTypeMap: any = {
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    };
+    const ext = path.extname(filePath).toLowerCase();
+    res.setHeader('Content-Type', contentTypeMap[ext] || 'application/octet-stream');
+    res.setHeader('Content-Length', stat.size.toString())
+    const fileStream = fs.createReadStream(filePath)
+    fileStream.pipe(res)
   } catch (error) {
     logger.error('Get document error:', error)
     res.status(500).json({ error: '获取文档信息失败' })

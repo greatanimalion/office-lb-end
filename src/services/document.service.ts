@@ -166,6 +166,7 @@ export const createDocument = async (
 ): Promise<number> => {
   const db = getDB()
   if (!db) { throw new Error('数据库未初始化')}
+  console.log(title, filename, filepath, ownerId)
   db.run(
     `INSERT INTO documents (title, filename, filepath, owner_id, status) VALUES ("${title}", "${filename}", "${filepath}", ${ownerId}, "active")`
   )

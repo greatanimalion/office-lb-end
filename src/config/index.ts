@@ -20,8 +20,9 @@ interface LogsConfig {
 }
 
 interface Config {
-  email: typeof email
   port: number
+  nodeServerUrl: string
+  email: typeof email
   nodeEnv: string
   database: typeof database
   redis: typeof redis
@@ -33,7 +34,8 @@ interface Config {
 }
 
 const config: Config = {
-  port: parseInt(process.env.PORT || '5000', 10),
+  nodeServerUrl: process.env.NODE_SERVER_URL || 'http://localhost:5000',
+  port: parseInt(process.env.NODE_SERVER_PORT || '5000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   database,
   redis,

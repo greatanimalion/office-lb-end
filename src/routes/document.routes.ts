@@ -1,7 +1,6 @@
 import express, { Router } from 'express'
 import multer from 'multer'
 import {
-  getDocumentsController,
   getSharedDocumentsController,
   getDocumentController,
   createDocumentController,
@@ -35,10 +34,10 @@ const chunkUpload = multer({ storage: chunkStorage })
 
 // router.use(authenticate)
 
-router.get('/', getDocumentsController as any)
+
 router.get('/view', viewDocumentByIdController as any)
 router.get('/shared', getSharedDocumentsController as any)
-router.get('/document/:id', getDocumentController as any)
+router.get('/d/:id', getDocumentController as any)
 router.post('/create', createUploadMiddleware('file'), createDocumentController as any)
 router.put('/:id', updateDocumentController as any)
 router.delete('/:id', deleteDocumentController as any)
@@ -52,6 +51,8 @@ router.post('/:id/versions/:version/restore', restoreDocumentVersionController a
 router.post('/:id/lock', lockDocumentController as any)
 router.post('/:id/unlock', unlockDocumentController as any)
 
+
+router.use(authenticate)
 router.post('/chunk/init', initUploadController as any)
 router.post('/chunk/upload', chunkUpload.single('chunk'), uploadChunkController as any)
 router.post('/chunk/merge', mergeChunksController as any)
