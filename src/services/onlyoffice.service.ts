@@ -26,23 +26,37 @@ export interface OnlyOfficeConfig {
 export const generateEditorConfig = (
   documentId: number,
   documentTitle: string,
-  documentUrl: string,
-  documentType: string,
   callbackUrl: string,
-  canEdit: boolean = true
+  canEdit: boolean = true,
+  user:{id:string,name:string}
 ): OnlyOfficeConfig => {
   const key = `${documentId}_${Date.now()}`
-  const documentConfig:any={
+  const documentConfig: any = {
     type: 'desktop',
-    documentServerUrl:'http://localhost',
+    documentServerUrl: 'http://localhost',
+    editorConfig: {
+      callbackUrl,
+      mode: 'edit',
+      lang: "zh-CN",
+      user: {
+        id: user.id,
+        name: user.name
+      },
+    },
+    permissions: {
+      edit: canEdit,
+      download: canEdit,
+      print: canEdit,
+    },
     document: {
-      url:'http://localhost:5000/test.doc',
+      lang: "zh",
+      url: 'http://localhost:5000/test.doc',
       title: documentTitle,
-      fileType: documentType,
+      fileType: documentTitle.split('.').pop() || 'docx',
       key
     },
   }
-  documentConfig.token = generateToken(documentConfig,config.onlyoffice.jwtSecret)
+  documentConfig.token = generateToken(documentConfig, config.onlyoffice.jwtSecret)
   return documentConfig
 }
 
