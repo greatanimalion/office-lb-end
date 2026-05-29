@@ -32,32 +32,18 @@ export const generateEditorConfig = (
   canEdit: boolean = true
 ): OnlyOfficeConfig => {
   const key = `${documentId}_${Date.now()}`
-
-  return {
-    documentServerUrl: config.onlyoffice.documentServerUrl,
-    jwtToken: generateToken({
-      userId: documentId,
-      email: '',
-      role: ''
-    }),
+  const documentConfig:any={
     type: 'desktop',
-    documentType,
+    documentServerUrl:'http://localhost',
     document: {
+      url:'http://localhost:5000/test.doc',
       title: documentTitle,
-      url: documentUrl,
       fileType: documentType,
       key
     },
-    editorConfig: {
-      callbackUrl,
-      mode: canEdit ? 'edit' : 'view'
-    },
-    permissions: {
-      edit: canEdit,
-      download: true,
-      print: true
-    }
   }
+  documentConfig.token = generateToken(documentConfig,config.onlyoffice.jwtSecret)
+  return documentConfig
 }
 
 export const handleCallback = async (body: any): Promise<void> => {

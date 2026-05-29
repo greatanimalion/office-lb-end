@@ -24,6 +24,22 @@ const getUserId = (req: Request): number => {
   return (req.user as { id: number })?.id
 }
 
+export const viewDocumentByIdController = async (req: Request, res: Response) => {
+  try {
+    const documentId = parseInt(req.params.documentId, 10)
+    const userId = getUserId(req)
+    const document = await getDocumentById(documentId, userId)
+    if (!document) {
+      res.status(404).json({ error: '文档不存在或无权访问' })
+      return
+    }
+    res.json(document)
+  } catch (error) {
+    logger.error('Get document by ID error:', error)
+    res.status(500).json({ error: '获取文档信息失败' })
+  }
+}
+
 export const getAllDocumentsController = async (
   req: Request,
   res: Response) => {

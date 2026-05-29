@@ -7,14 +7,14 @@ interface TokenPayload {
   role: string
 }
 
-export const generateToken = (payload: TokenPayload): string => {
-  return jwt.sign(payload, config.auth.jwtSecret, {
+export const generateToken = (payload: TokenPayload,secret?:string): string => {
+  return jwt.sign(payload, secret || config.auth.jwtSecret, {
     expiresIn: config.auth.jwtExpiresIn as jwt.SignOptions['expiresIn'],
   })
 }
 
-export const verifyToken = (token: string): TokenPayload => {
-  return jwt.verify(token, config.auth.jwtSecret) as TokenPayload
+export const verifyToken = (token: string,secret?:string): TokenPayload => {
+  return jwt.verify(token, secret || config.auth.jwtSecret) as TokenPayload
 }
 
 export const decodeToken = (token: string): TokenPayload | null => {

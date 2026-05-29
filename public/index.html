@@ -21,8 +21,7 @@
       const winHeight = window.innerHeight;
       const config = {
         height: winHeight,
-        token:
-          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkb2N1bWVudCI6eyJmaWxlVHlwZSI6ImRvY3giLCJrZXkiOiJLaGlyejZ6VFBkZmQ3IiwidGl0bGUiOiJ0ZXN0LmRvYyIsInVybCI6Imh0dHA6Ly9sb2NhbGhvc3Q6NTAwMC90ZXN0LmRvYyJ9LCJlZGl0b3JDb25maWciOnsiY2FsbGJhY2tVcmwiOiJodHRwczovL2V4YW1wbGUuY29tL3VybC10by1jYWxsYmFjayJ9LCJpYXQiOjE3Nzk4NDE3NDUsImV4cCI6MTc3OTg4NDk0NX0.kNeOHa0JRjU1g7Enq5BJkIzc75VL8-SRApPCxw9HYOM",
+        token:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXBlIjoiZGVza3RvcCIsImRvY3VtZW50VHlwZSI6ImRvY3giLCJkb2N1bWVudCI6eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjUwMDAiLCJ0aXRsZSI6IjE3Nzk5NTU3NTIxODVf5paw5bu6X0RPQ1hf5paH5qGjLmRvY3giLCJmaWxlVHlwZSI6ImRvY3giLCJrZXkiOiIxXzE3ODAwNDEzNzcwNTEifSwiaWF0IjoxNzgwMDQxMzc3LCJleHAiOjE3ODAxMjc3Nzd9.UqGCUUik74JmBIN2zh_lD8VrlupyOVJpLPyF_rlNFHk",
         document: {
           fileType: "docx",
           key: "Khirz6zTPdfd7",
@@ -60,21 +59,7 @@
       };
 
       const docEditor = new DocsAPI.DocEditor("placeholder", config);
-      let doc = DocsAPI.GetDocument();
-      let watermarkSettings = doc.GetWatermarkSettings();
-      watermarkSettings.SetType("text");
-      watermarkSettings.SetText("Example");
-      let textPr = watermarkSettings.GetTextPr();
-      textPr.SetFontFamily("Calibri");
-      textPr.SetFontSize(-1);
-      textPr.SetDoubleStrikeout(true);
-      textPr.SetItalic(true);
-      textPr.SetBold(true);
-      textPr.SetUnderline(true);
-      textPr.SetColor(Api.RGB(0, 255, 0));
-      textPr.SetHighlight("blue");
-      watermarkSettings.SetTextPr(textPr);
-      doc.SetWatermarkSettings(watermarkSettings);
+    
     </script>
   </body>
 </html>

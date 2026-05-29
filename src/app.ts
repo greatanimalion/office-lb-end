@@ -40,7 +40,10 @@ export const createApp = (): Application => {
     }
   }))
   app.use((req, res, next) => {
-    //打印接口地址和请求方法
+    //允许非同源请求
+    res.header('Access-Control-Allow-Origin', '*')
+    res.header('Access-Control-Allow-Methods', '*')
+    res.header('Access-Control-Allow-Headers', '*')
     console.log(req.method, req.url)
     next()
   })

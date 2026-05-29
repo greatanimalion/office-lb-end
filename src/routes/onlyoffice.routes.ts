@@ -7,7 +7,7 @@ import { authenticate, optionalAuth } from '../middlewares/auth.middleware'
 
 const router = Router()
 
-router.get('/:id/config', authenticate, getEditorConfigController as any)
-router.post('/:id/callback', callbackController as any)
+router.get('/:documentId/config', authenticate, getEditorConfigController as any)
+router.post('/:documentId/callback', callbackController as any)
 
 export default router

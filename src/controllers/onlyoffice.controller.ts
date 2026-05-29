@@ -10,20 +10,17 @@ export const getEditorConfigController = async (
   try {
     const documentId = parseInt(req.params.documentId, 10)
     const userId = parseInt(req.params.userId, 10)
-
     if (isNaN(documentId)) {
       res.status(400).json({ error: '无效的文档ID' })
       return
     }
-
     const document = await getDocumentById(documentId, userId)
-
     if (!document) {
       res.status(404).json({ error: '文档不存在或无权访问' })
       return
     }
 
-    const config = generateEditorConfig(
+    const editorConfig = generateEditorConfig(
       document.id,
       document.title,
       `http://localhost:${_config.port}/api/documents/${document.id}/download`,
@@ -32,7 +29,7 @@ export const getEditorConfigController = async (
       true
     )
 
-    res.json(config)
+    res.send(editorConfig)
   } catch (error) {
     logger.error('Get editor config error:', error)
     res.status(500).json({ error: '获取编辑器配置失败' })

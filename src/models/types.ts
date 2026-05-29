@@ -61,6 +61,7 @@ export interface DocumentVersion {
   id: number
   documentId: number
   version: number
+  fileSize: number
   filepath: string
   createdBy: number
   createdAt: Date

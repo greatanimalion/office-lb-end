@@ -131,16 +131,12 @@ export const getSharedDocuments = async (userId: number): Promise<Document[]> =>
 
 export const getDocumentById = async (id: number, userId: number): Promise<Document | null> => {
   const db = getDB()
-
   if (!db) {
     return null
   }
-
   const result = db.exec(`
     SELECT DISTINCT d.id, d.title, d.filename, d.filepath, d.owner_id, d.status, d.locked, d.locked_by, d.created_at, d.updated_at
     FROM documents d
-    LEFT JOIN document_shares ds ON d.id = ds.document_id AND ds.user_id = ${userId}
-    WHERE d.id = ${id} AND d.status != 'deleted' AND (d.owner_id = ${userId} OR ds.id IS NOT NULL)
   `)
 
   if (!result.length || !result[0].values.length) {
