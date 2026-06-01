@@ -87,16 +87,13 @@ export const uploadChunkController = async (req: Request, res: Response): Promis
 
 export const mergeChunksController = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { fileId, title } = req.body
+    const { fileId, title, fileSize } = req.body
     const userId = getUserId(req)
-
     if (!fileId) {
       res.status(400).json({ error: '缺少文件ID' })
       return
     }
-
     const outputPath = await mergeChunks(fileId)
-
     if (!outputPath) {
       res.status(400).json({ error: '合并分片失败，分片不完整' })
       return
@@ -107,7 +104,8 @@ export const mergeChunksController = async (req: Request, res: Response): Promis
       title || filename,
       filename,
       outputPath,
-      userId
+      userId,
+      fileSize
     )
     
     res.json({

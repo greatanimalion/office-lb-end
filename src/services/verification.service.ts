@@ -56,11 +56,17 @@ const getRedisKey = (target: string): string => {
 
 export const generateVerificationCode = async (
   target: string
-): Promise<string> => {
+): Promise<{
+  success: boolean,
+  message?: string,
+}> => {
   await initRedis()
   initEmailTransporter()
   if (!redisClient) {
-    return 'Redis未连接'
+    return {
+      success: false,
+      message: 'Redis未连接'
+    }
   }
   const code = generateCode()
   const key = getRedisKey(target)
@@ -73,10 +79,13 @@ export const generateVerificationCode = async (
     const timeSinceCreation = Date.now() - createdAt
     if (timeSinceCreation < RESEND_COOLDOWN_SECONDS * 1000) {
       const remainingSeconds = Math.ceil((RESEND_COOLDOWN_SECONDS * 1000 - timeSinceCreation) / 1000)
-      return `请在 ${remainingSeconds} 秒后重试`
+      return {
+        success: false,
+        message: `请在 ${remainingSeconds} 秒后重试`
+      }
     }
   }
-  await redisClient.setEx(key, expiresInSeconds, code+":"+Date.now())
+  await redisClient.setEx(key, expiresInSeconds, code)
   if (emailTransporter) {
     try {
       await emailTransporter.sendMail({
@@ -90,10 +99,16 @@ export const generateVerificationCode = async (
     } catch (error) {
       logger.error('Failed to send email:', error)
       await redisClient.del(key)
-     return '发送邮件失败'
+      return {
+        success: false,
+        message: '发送邮件失败'
+      }
     }
   }
-  return '验证码发送成功'
+  return {
+    success: true,
+    message: '验证码发送成功'
+  } 
 }
 
 export const verifyCode = async (

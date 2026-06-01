@@ -3,23 +3,12 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { getDB, saveDB } from '../db'
 import { getStoragePath } from '../utils/file'
-
+import {Document} from '../models/types.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-export interface Document {
-  id: number
-  title: string
-  filename: string
-  filepath: string
-  owner_id: number
-  status: string
-  locked: boolean
-  locked_by?: number
-  created_at: string
-  updated_at: string
-}
+
 
 export interface DocumentVersion {
   id: number
@@ -48,9 +37,11 @@ export const getAllDocuments=async (page:number,pageSize:number=10)=>{
         owner_id: row[4] as number,
         status: row[5] as string,
         locked: (row[6] as number) === 1,
-        locked_by: row[7] as number | undefined,
-        created_at: row[8] as string,
-        updated_at: row[9] as string
+        fileSize: row[7] as number,
+        locked_by: row[8] as number | undefined,
+        version_number: row[9] as number,
+        created_at: row[10] as string,
+        updated_at: row[11] as string
       })
     })
   }
@@ -65,7 +56,7 @@ export const getDocumentsByOwner = async (ownerId: number): Promise<Document[]> 
   }
 
   const result = db.exec(`
-    SELECT d.id, d.title, d.filename, d.filepath, d.owner_id, d.status, d.locked, d.locked_by, d.created_at, d.updated_at
+    SELECT d.id, d.title, d.filename, d.filepath, d.filesize, d.owner_id_id, d.status, d.locked, d.locked_by, d.created_at, d.updated_at
     FROM documents d
     WHERE d.owner_id = ${ownerId} AND d.status != 'deleted'
     ORDER BY d.updated_at DESC
@@ -80,10 +71,12 @@ export const getDocumentsByOwner = async (ownerId: number): Promise<Document[]> 
         title: row[1] as string,
         filename: row[2] as string,
         filepath: row[3] as string,
+        fileSize: row[4] as number,
         owner_id: row[4] as number,
         status: row[5] as string,
         locked: (row[6] as number) === 1,
         locked_by: row[7] as number | undefined,
+        version_number: row[8] as number,
         created_at: row[8] as string,
         updated_at: row[9] as string
       })
@@ -100,7 +93,7 @@ export const getSharedDocuments = async (userId: number): Promise<Document[]> =>
   }
 
   const result = db.exec(`
-    SELECT d.id, d.title, d.filename, d.filepath, d.owner_id, d.status, d.locked, d.locked_by, d.created_at, d.updated_at, ds.permission
+    SELECT d.id, d.title, d.filename, d.filepath, d.filesize, d.owner_id_id_id, d.owner_id_id, d.status, d.locked, d.locked_by, d.created_at, d.updated_at, ds.permission
     FROM documents d
     JOIN document_shares ds ON d.id = ds.document_id
     WHERE ds.user_id = ${userId} AND d.status != 'deleted'
@@ -116,10 +109,12 @@ export const getSharedDocuments = async (userId: number): Promise<Document[]> =>
         title: row[1] as string,
         filename: row[2] as string,
         filepath: row[3] as string,
-        owner_id: row[4] as number,
+        fileSize: row[4] as number,
+        owner_id: row[5] as number,
         status: row[5] as string,
         locked: (row[6] as number) === 1,
         locked_by: row[7] as number | undefined,
+        version_number: row[8] as number,
         created_at: row[8] as string,
         updated_at: row[9] as string
       })
@@ -135,54 +130,52 @@ export const getDocumentById = async (id: number, userId: number): Promise<Docum
     return null
   }
   const result = db.exec(`
-    SELECT DISTINCT d.id, d.title, d.filename, d.filepath, d.owner_id, d.status, d.locked, d.locked_by, d.created_at, d.updated_at
-    FROM documents d
+    SELECT DISTINCT d.id, d.title, d.filename, d.filepath, d.filesize, d.owner_id, d.status, d.locked, d.locked_by, d.created_at, d.updated_at
+    FROM documents d where d.id=${id} 
   `)
 
   if (!result.length || !result[0].values.length) {
     return null
   }
-
   const row = result[0].values[0]
   return {
     id: row[0] as number,
     title: row[1] as string,
     filename: row[2] as string,
     filepath: row[3] as string,
-    owner_id: row[4] as number,
+    fileSize: row[4] as number,
+    owner_id: row[5] as number,
     status: row[5] as string,
     locked: (row[6] as number) === 1,
     locked_by: row[7] as number | undefined,
+    version_number: row[8] as number,
     created_at: row[8] as string,
     updated_at: row[9] as string
   }
 }
-
 export const createDocument = async (
   title: string,
   filename: string,
   filepath: string,
-  ownerId: number
+  ownerId: number,
+  filesize: number=0
 ): Promise<number> => {
   const db = getDB()
   if (!db) { throw new Error('数据库未初始化')}
-  console.log(title, filename, filepath, ownerId)
+  console.log(title, filename, filepath, ownerId, filesize)
   db.run(
-    `INSERT INTO documents (title, filename, filepath, owner_id, status) VALUES ("${title}", "${filename}", "${filepath}", ${ownerId}, "active")`
+    `INSERT INTO documents (title, filename, filepath, owner_id, status, filesize) VALUES ("${title}", "${filename}", "${filepath}", ${ownerId}, "active", ${filesize})`
   )
-
   const lastIdResult = db.exec('SELECT last_insert_rowid()')
   const lastId = lastIdResult[0].values[0][0] as number
-
-  await createDocumentVersion(lastId, filepath, ownerId)
+  await createDocumentVersion(lastId, filepath, ownerId, filesize)
   db.run(`INSERT INTO audit_logs (user_id, document_id, action) VALUES (${ownerId}, ${lastId}, "创建文档")`)
   saveDB()
   return lastId
 }
 
-export const createDocumentVersion = async (documentId: number, filepath: string, userId: number): Promise<void> => {
+export const createDocumentVersion = async (documentId: number, filepath: string, userId: number, filesize: number=0): Promise<void> => {
   const db = getDB()
-
   if (!db) {
     return
   }
@@ -200,8 +193,8 @@ export const createDocumentVersion = async (documentId: number, filepath: string
   
   fs.copyFileSync(filepath, versionPath)
   db.run(`
-    INSERT INTO document_versions (document_id, version_number, filepath, created_by)
-    VALUES (${documentId}, ${newVersion}, "${versionPath}", ${userId})
+    INSERT INTO document_versions (document_id, version_number, filepath, created_by, filesize)
+    VALUES (${documentId}, ${newVersion}, "${versionPath}", ${userId}, ${filesize})
   `)
   saveDB()
 }

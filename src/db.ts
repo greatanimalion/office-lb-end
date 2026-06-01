@@ -73,13 +73,8 @@ export const initDB = async (): Promise<void> => {
   if (fs.existsSync(DB_PATH)) {
     const buffer = fs.readFileSync(DB_PATH)
     db = new SQL.Database(buffer)
-    
-    addColumnIfNotExists(db, 'users', 'provider', 'TEXT')
-    addColumnIfNotExists(db, 'users', 'provider_id', 'TEXT')
-    addColumnIfNotExists(db, 'documents', 'status', "TEXT DEFAULT 'active'")
-    addColumnIfNotExists(db, 'documents', 'locked', 'INTEGER DEFAULT 0')
-    addColumnIfNotExists(db, 'documents', 'locked_by', 'INTEGER')
-    addColumnIfNotExists(db, 'upload_sessions', 'hash', 'TEXT')
+    addColumnIfNotExists(db, 'documents', 'filesize', 'INTEGER DEFAULT 0')
+    addColumnIfNotExists(db, 'documents', 'version_number', 'INTEGER DEFAULT 1')
   } else {
     db = new SQL.Database()
     db.run(`
@@ -103,7 +98,9 @@ export const initDB = async (): Promise<void> => {
         owner_id INTEGER NOT NULL,
         status TEXT DEFAULT 'active',
         locked INTEGER DEFAULT 0,
+        filesize INTEGER NOT NULL,
         locked_by INTEGER,
+        version_number INTEGER DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (owner_id) REFERENCES users(id)
@@ -114,6 +111,7 @@ export const initDB = async (): Promise<void> => {
       CREATE TABLE document_versions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         document_id INTEGER NOT NULL,
+        filesize INTEGER NOT NULL,
         version_number INTEGER NOT NULL,
         filepath TEXT NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

@@ -37,12 +37,12 @@ export const registerController = async (
     const { username, email, password,code } = req.body
 
     if (!username || !email || !password||!code) {
-      res.status(400).json({ message: '用户名、邮箱、密码、和验证码不能为空' })
+      res.status(400).json({ success: false, message: '用户名、邮箱、密码、和验证码不能为空' })
       return
     }
     const verifyResult = await verifyCode(email,code)
     if (!verifyResult.success) {
-      res.status(400).json({ message: verifyResult.message })
+      res.status(200).json({ success: false, message: verifyResult.message })
       return
     }
 
@@ -50,13 +50,14 @@ export const registerController = async (
     const result = await register(username, email, password)
 
     if (!result.success) {
-      res.status(400).json({ message: result.error })
+      res.status(400).json({ success: false, message: result.error })
       return
     }
-    res.status(200).json({ message: '注册成功' })
+
+    res.status(200).json({ success: true, message: '注册成功' })
   } catch (error) {
     logger.error('Register error:', error)
-    res.status(500).json({ message: '注册失败' })
+    res.status(500).json({ success: false, message: '注册失败' })
   }
 }
 

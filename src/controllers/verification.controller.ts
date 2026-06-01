@@ -16,13 +16,10 @@ export const sendVerificationCodeController = async (req: Request, res: Response
         }
         const _res=await generateVerificationCode(email)
         logger.info(`Verification code sent:email -> ${email}`)
-        res.json({
-            success: true,
-            message: _res,
-        })
+        res.json(_res)
     } catch (error) {
         logger.error('Send verification code error:', error)
-        res.status(500).json({ error: '发送验证码失败' })
+        res.status(500).json({ success: false, message: '发送验证码失败' })
     }
 }
 

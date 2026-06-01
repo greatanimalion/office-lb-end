@@ -93,7 +93,6 @@ export const getDocumentController = async (
       return console.log(filePath)
     }
     console.log(filePath)
-    console.log('asasasasas')
     const stat = fs.statSync(filePath)
     const contentTypeMap: any = {
       '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -129,12 +128,12 @@ export const createDocumentController = async (
     const documentsDir = path.join(getStoragePath(), 'documents')
 
     const newPath = path.join(documentsDir, newFilename)
-
     const documentId = await createDocument(
       title || file.originalname,
       newFilename,
       newPath,
-      userId
+      userId,
+      file.size || 0
     )
 
     res.status(201).json({ id: documentId, title: title || file.originalname })
