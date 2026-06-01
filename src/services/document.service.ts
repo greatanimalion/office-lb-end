@@ -19,13 +19,13 @@ export interface DocumentVersion {
   created_by: number
 }
 
-export const getAllDocuments=async (page:number,pageSize:number=10)=>{
+export const getAllDocuments=async (page:number,pageSize:number=10,userId:number)=>{
   const offset=(page-1)*pageSize
   const db = getDB()
   if (!db) {
     return []
   }
-  const result = db.exec(`SELECT * FROM documents d LIMIT ${pageSize} OFFSET ${offset}`)
+  const result = db.exec(`SELECT * FROM documents d WHERE d.owner_id=${userId}  LIMIT ${pageSize} OFFSET ${offset}`)
   const documents: Document[] = []
   if (result.length && result[0].values.length) {
     result[0].values.forEach((row: unknown[]) => {

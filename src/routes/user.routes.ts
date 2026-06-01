@@ -3,7 +3,8 @@ import {
   loginController,
   registerController,
   getUsersController,
-  getUserByIdController
+  getUserByIdController,
+  getAllUsersController
 } from '../controllers/user.controller'
 import {
   sendVerificationCodeController,
@@ -19,5 +20,6 @@ router.post('/register', authLimiter, registerController as any)
 router.post('/sendcode', authLimiter, sendVerificationCodeController as any)
 router.get('/users', authenticate, getUsersController as any)
 router.get('/user/:id', authenticate, getUserByIdController as any)
+router.get('/user/all', authenticate, getAllUsersController as any)
 
 export default router

@@ -18,7 +18,6 @@ export interface User {
   provider?: string
   providerId?: string
 }
-
 export interface Document {
   id: number
   title: string
@@ -75,6 +74,26 @@ export const initDB = async (): Promise<void> => {
     db = new SQL.Database(buffer)
     addColumnIfNotExists(db, 'documents', 'filesize', 'INTEGER DEFAULT 0')
     addColumnIfNotExists(db, 'documents', 'version_number', 'INTEGER DEFAULT 1')
+    db.run(`
+      CREATE TABLE IF NOT EXISTS groups (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        owner_id INTEGER NOT NULL,
+        created_at TEXT,
+        description TEXT)
+         `)
+    db.run(`
+        CREATE TABLE IF NOT EXISTS group_members (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_id INTEGER NOT NULL,
+          user_id INTEGER NOT NULL,
+          role TEXT DEFAULT 'member',
+          created_at TEXT,
+          FOREIGN KEY (group_id) REFERENCES groups(id),
+          FOREIGN KEY (user_id) REFERENCES users(id),
+          UNIQUE (group_id, user_id)
+        )
+      `)
   } else {
     db = new SQL.Database()
     db.run(`
@@ -189,7 +208,26 @@ export const initDB = async (): Promise<void> => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `)
-
+    db.run(`
+      CREATE TABLE IF NOT EXISTS groups (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        owner_id INTEGER NOT NULL,
+        created_at TEXT,
+        description TEXT)
+         `)
+    db.run(`
+        CREATE TABLE IF NOT EXISTS group_members (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_id INTEGER NOT NULL,
+          user_id INTEGER NOT NULL,
+          role TEXT DEFAULT 'member',
+          created_at TEXT,
+          FOREIGN KEY (group_id) REFERENCES groups(id),
+          FOREIGN KEY (user_id) REFERENCES users(id),
+          UNIQUE (group_id, user_id)
+        )
+      `)
     saveDB()
   }
 }

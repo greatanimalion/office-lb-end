@@ -7,8 +7,9 @@ import permissionRoutes from './permission.routes'
 import onlyofficeRoutes from './onlyoffice.routes'
 import searchRoutes from './search.routes'
 import auditRoutes from './audit.routes'
+import groupRoutes from './group.router'
 
-const router: import('express').Router = Router()
+const router = Router()
 
 router.use('/auth', userRoutes)
 router.use('/oauth', oauthRoutes)
@@ -18,5 +19,6 @@ router.use('/permissions', permissionRoutes)
 router.use('/onlyoffice', onlyofficeRoutes)
 router.use('/search', searchRoutes)
 router.use('/audit', auditRoutes)
+router.use('/groups', groupRoutes)
 
 export default router

@@ -46,7 +46,7 @@ export const callbackController = async (
 ): Promise<void> => {
   try {
     await handleCallback(req.body)
-    res.json({ success: true })
+    res.json({"error": 0})
   } catch (error) {
     logger.error('OnlyOffice callback error:', error)
     res.status(500).json({ error: '回调处理失败' })

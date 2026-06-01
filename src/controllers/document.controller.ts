@@ -45,9 +45,10 @@ export const getAllDocumentsController = async (
   req: Request,
   res: Response) => {
   try {
+    const userId = getUserId(req)
     const page = parseInt(req.query.page as string, 10) || 1
     const pageSize = parseInt(req.query.pageSize as string, 10) || 10
-    const documents = await getAllDocuments(page, pageSize)
+    const documents = await getAllDocuments(page, pageSize,userId)
     res.json(documents)
   } catch (error) {
     logger.error('Get all documents error:', error)

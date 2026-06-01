@@ -3,6 +3,12 @@ import { login, register, getAllUsers, getUserById } from '../services/user.serv
 import logger from '../utils/logger.js'
 import { verifyCode } from '../services/verification.service.js'
 
+
+export const getAllUsersController=async (req: Request, res: Response)=>{
+  const users = await getAllUsers()
+  res.json(users)
+}
+
 export const loginController = async (
   req: Request,
   res: Response

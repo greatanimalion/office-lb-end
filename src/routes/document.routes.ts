@@ -34,7 +34,7 @@ const chunkUpload = multer({ storage: chunkStorage })
 
 // router.use(authenticate)
 
-
+router.use(authenticate)
 router.get('/view', viewDocumentByIdController as any)
 router.get('/shared', getSharedDocumentsController as any)
 router.get('/d/:id', getDocumentController as any)
@@ -51,8 +51,6 @@ router.post('/:id/versions/:version/restore', restoreDocumentVersionController a
 router.post('/:id/lock', lockDocumentController as any)
 router.post('/:id/unlock', unlockDocumentController as any)
 
-
-router.use(authenticate)
 router.post('/chunk/init', initUploadController as any)
 router.post('/chunk/upload', chunkUpload.single('chunk'), uploadChunkController as any)
 router.post('/chunk/merge', mergeChunksController as any)
