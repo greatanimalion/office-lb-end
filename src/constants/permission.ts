@@ -4,8 +4,9 @@ export enum PermissionType {
   EDIT = 'edit',
   DELETE = 'delete',
   COMMENT = 'comment',
+  CHANGE_PERMISSION = 'change_permission',
   SHARE = 'share',
-  FULL_CONTROL = 'full_control'
+  MAKE_TEMPLATE = 'make_template'
 }
 
 export enum ShareLinkType {
@@ -21,7 +22,8 @@ export const PERMISSION_HIERARCHY: Record<PermissionType, number> = {
   [PermissionType.DELETE]: 4,
   [PermissionType.EDIT]: 5,
   [PermissionType.COMMENT]: 6,
-  [PermissionType.FULL_CONTROL]: 7
+  [PermissionType.CHANGE_PERMISSION]: 7,
+  [PermissionType.MAKE_TEMPLATE]: 8
 }
 
 export const hasPermission = (userPermission: PermissionType, requiredPermission: PermissionType): boolean => {

@@ -22,3 +22,11 @@ export interface DocumentVersion {
   created_by: number
   created_at: Date
 }
+export interface DocumentShare {
+  id: number
+  documentId: number
+  userId: number
+  permission: string
+  sharedBy: number
+  createdAt: Date
+}

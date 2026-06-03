@@ -1,7 +1,8 @@
 import { Router } from 'express'
 import {
   createFolderController,
-  getFoldersController,
+  getFolderTreeController,
+  getFolderListController,
   updateFolderController,
   deleteFolderController
 } from '../controllers/folder.controller'
@@ -11,7 +12,8 @@ const router = Router()
 
 router.use(authenticate)
 
-router.get('/', getFoldersController as any)
+router.get('/', getFolderListController as any)
+router.get('/tree/:groupId', getFolderTreeController as any)
 router.post('/', createFolderController as any)
 router.put('/:id', updateFolderController as any)
 router.delete('/:id', deleteFolderController as any)

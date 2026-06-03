@@ -9,49 +9,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 let db: Database | null = null
 const DB_PATH = process.env.DB_DATABASE || path.join(__dirname, '../database.sqlite')
 
-export interface User {
-  id: number
-  username: string
-  email: string
-  password: string
-  role: string
-  provider?: string
-  providerId?: string
-}
-export interface Document {
-  id: number
-  title: string
-  filename: string
-  filepath: string
-  ownerId: number
-  status: string
-  locked: boolean
-  lockedBy?: number
-  createdAt: Date
-  updatedAt: Date
-}
-
-export interface DocumentVersion {
-  id: number
-  documentId: number
-  versionNumber: number
-  filepath: string
-  createdAt: Date
-  createdBy: number
-}
-
-export interface ShareLink {
-  id: number
-  documentId: number
-  token: string
-  password?: string
-  expiresAt?: Date
-  maxViews: number
-  views: number
-  permissions: string
-  createdAt: Date
-}
-
 const addColumnIfNotExists = (db: Database, tableName: string, columnName: string, columnDef: string): void => {
   try {
     const result = db.exec(`PRAGMA table_info(${tableName})`)
@@ -75,6 +32,15 @@ export const initDB = async (): Promise<void> => {
     addColumnIfNotExists(db, 'documents', 'filesize', 'INTEGER DEFAULT 0')
     addColumnIfNotExists(db, 'documents', 'version_number', 'INTEGER DEFAULT 1')
     db.run(`
+      CREATE TABLE IF NOT EXISTS permissions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        target_id INTEGER,
+        share_type TEXT NOT NULL,
+        permission TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      )`)
+    db.run(`
       CREATE TABLE IF NOT EXISTS groups (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
@@ -94,8 +60,36 @@ export const initDB = async (): Promise<void> => {
           UNIQUE (group_id, user_id)
         )
       `)
+    db.run(`
+      CREATE TABLE IF NOT EXISTS folders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        filename TEXT NOT NULL,
+        parent_folder_id INTEGER,
+        group_id INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (parent_folder_id) REFERENCES folders(id),
+        FOREIGN KEY (group_id) REFERENCES groups(id)
+      )
+    `)
   } else {
     db = new SQL.Database()
+    db.run(`
+      CREATE TABLE IF NOT EXISTS permissions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        document_id INTEGER NOT NULL,
+        group_id INTEGER,
+        share_type TEXT NOT NULL,
+        permission_type TEXT NOT NULL,
+        inherited_permission_id INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        FOREIGN KEY (document_id) REFERENCES documents(id),
+        FOREIGN KEY (group_id) REFERENCES groups(id),
+        FOREIGN KEY (inherited_permission_id) REFERENCES permissions(id)
+      )`)
     db.run(`
       CREATE TABLE users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -228,6 +222,18 @@ export const initDB = async (): Promise<void> => {
           UNIQUE (group_id, user_id)
         )
       `)
+    db.run(`
+      CREATE TABLE IF NOT EXISTS folders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        filename TEXT NOT NULL,
+        parent_folder_id INTEGER,
+        group_id INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (parent_folder_id) REFERENCES folders(id),
+        FOREIGN KEY (group_id) REFERENCES groups(id)
+      )
+    `)
     saveDB()
   }
 }
