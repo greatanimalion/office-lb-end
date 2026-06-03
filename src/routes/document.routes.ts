@@ -32,12 +32,12 @@ const router = Router()
 const chunkStorage = multer.memoryStorage()
 const chunkUpload = multer({ storage: chunkStorage })
 
-// router.use(authenticate)
+
+router.get('/d/:id', getDocumentController as any)
 
 router.use(authenticate)
 router.get('/view', viewDocumentByIdController as any)
 router.get('/shared', getSharedDocumentsController as any)
-router.get('/d/:id', getDocumentController as any)
 router.post('/create', createUploadMiddleware('file'), createDocumentController as any)
 router.put('/:id', updateDocumentController as any)
 router.delete('/:id', deleteDocumentController as any)

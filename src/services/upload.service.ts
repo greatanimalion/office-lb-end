@@ -43,9 +43,7 @@ export const initUploadSession = async (
   if (!db) {
     throw new Error('数据库未初始化')
   }
-
   const fileId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-  
   db.run(`
     INSERT INTO upload_sessions (file_id, filename, filesize, total_chunks, uploaded_chunks, hash, created_at, updated_at)
     VALUES ("${fileId}", "${filename}", ${filesize}, ${totalChunks}, "[]", "${hash || ''}", CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)

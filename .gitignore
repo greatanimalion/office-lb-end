@@ -3,5 +3,7 @@ dist
 logs
 .env
 .env.example
+
 database.sqlite
+
 uploads

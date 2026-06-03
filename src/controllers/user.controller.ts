@@ -5,8 +5,13 @@ import { verifyCode } from '../services/verification.service.js'
 
 
 export const getAllUsersController=async (req: Request, res: Response)=>{
-  const users = await getAllUsers()
-  res.json(users)
+  try {
+    const users = await getAllUsers()
+    res.status(200).json({success:true,message:'获取用户列表成功',user:users})
+  } catch (error) {
+    logger.error('Get users error:', error)
+    res.status(400).json({ message: '获取用户列表失败' })
+  }
 }
 
 export const loginController = async (

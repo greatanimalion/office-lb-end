@@ -3,21 +3,14 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { getDB, saveDB } from '../db'
 import { getStoragePath } from '../utils/file'
-import {Document} from '../models/types.js'
+import {Document,DocumentVersion} from '../models/document.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 
 
-export interface DocumentVersion {
-  id: number
-  document_id: number
-  version_number: number
-  filepath: string
-  created_at: string
-  created_by: number
-}
+
 
 export const getAllDocuments=async (page:number,pageSize:number=10,userId:number)=>{
   const offset=(page-1)*pageSize
@@ -221,9 +214,10 @@ export const getDocumentVersions = async (documentId: number): Promise<DocumentV
         id: row[0] as number,
         document_id: row[1] as number,
         version_number: row[2] as number,
+        filesize: row[3] as number,
         filepath: row[3] as string,
-        created_at: row[4] as string,
-        created_by: row[5] as number
+        created_by: row[4] as number,
+        created_at: row[5] as Date
       })
     })
   }

@@ -2,7 +2,9 @@ export enum PermissionType {
   VIEW = 'view',
   DOWNLOAD = 'download',
   EDIT = 'edit',
+  DELETE = 'delete',
   COMMENT = 'comment',
+  SHARE = 'share',
   FULL_CONTROL = 'full_control'
 }
 
@@ -15,9 +17,11 @@ export enum ShareLinkType {
 export const PERMISSION_HIERARCHY: Record<PermissionType, number> = {
   [PermissionType.VIEW]: 1,
   [PermissionType.DOWNLOAD]: 2,
-  [PermissionType.COMMENT]: 3,
-  [PermissionType.EDIT]: 4,
-  [PermissionType.FULL_CONTROL]: 5
+  [PermissionType.SHARE]: 3,
+  [PermissionType.DELETE]: 4,
+  [PermissionType.EDIT]: 5,
+  [PermissionType.COMMENT]: 6,
+  [PermissionType.FULL_CONTROL]: 7
 }
 
 export const hasPermission = (userPermission: PermissionType, requiredPermission: PermissionType): boolean => {

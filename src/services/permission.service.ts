@@ -1,15 +1,15 @@
 import { PermissionType } from '../constants/permission'
+import { Permission } from '../models/permission'
 
-export interface Permission {
-  id: number
-  userId: number
-  documentId: number
-  permissionType: PermissionType
-  inheritedFrom?: number
-  createdAt: Date
-  updatedAt: Date
+const hierarchy: Record<PermissionType, number> = {
+  [PermissionType.VIEW]: 1,
+  [PermissionType.DOWNLOAD]: 2,
+  [PermissionType.COMMENT]: 3,
+  [PermissionType.EDIT]: 4,
+  [PermissionType.DELETE]: 5,
+  [PermissionType.SHARE]: 6,
+  [PermissionType.FULL_CONTROL]: 7
 }
-
 export const checkPermission = (
   userPermission: PermissionType | null,
   requiredPermission: PermissionType
@@ -17,15 +17,6 @@ export const checkPermission = (
   if (!userPermission) {
     return false
   }
-
-  const hierarchy: Record<PermissionType, number> = {
-    [PermissionType.VIEW]: 1,
-    [PermissionType.DOWNLOAD]: 2,
-    [PermissionType.COMMENT]: 3,
-    [PermissionType.EDIT]: 4,
-    [PermissionType.FULL_CONTROL]: 5
-  }
-
   return hierarchy[userPermission] >= hierarchy[requiredPermission]
 }
 
@@ -36,14 +27,6 @@ export const getHighestPermission = (
     return null
   }
 
-  const hierarchy: Record<PermissionType, number> = {
-    [PermissionType.VIEW]: 1,
-    [PermissionType.DOWNLOAD]: 2,
-    [PermissionType.COMMENT]: 3,
-    [PermissionType.EDIT]: 4,
-    [PermissionType.FULL_CONTROL]: 5
-  }
-
   let highest = permissions[0].permissionType
 
   for (const perm of permissions) {
@@ -51,6 +34,5 @@ export const getHighestPermission = (
       highest = perm.permissionType
     }
   }
-
   return highest
 }
