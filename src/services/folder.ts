@@ -27,8 +27,10 @@ export const createFolder = async (options: CreateFolderOptions): Promise<{ succ
       }
     }
 
+    const now = new Date().toISOString()
     db.run(
-      `INSERT INTO folders (filename, parent_folder_id, group_id) VALUES ("${filename}", ${parentFolderId || 'NULL'}, ${groupId})`
+      `INSERT INTO folders (filename, parent_folder_id, group_id, created_at, updated_at)
+       VALUES ("${filename}", ${parentFolderId || 'NULL'}, ${groupId}, "${now}", "${now}")`
     )
 
     const lastIdResult = db.exec('SELECT last_insert_rowid()')
@@ -38,6 +40,7 @@ export const createFolder = async (options: CreateFolderOptions): Promise<{ succ
 
     return { success: true, id: lastId }
   } catch (err) {
+    console.error(err)
     return { success: false, error: '创建文件夹失败' }
   }
 }

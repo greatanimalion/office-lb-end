@@ -9,6 +9,13 @@ export enum PermissionType {
   MAKE_TEMPLATE = 'make_template'
 }
 
+export enum shareType {
+  USER = "user",
+  FOLDER = "folder",
+  DOCUMENT = "document",
+  LINK = "link",
+  PUBLIC = "public"
+}
 export enum ShareLinkType {
   PUBLIC = 'public',
   PRIVATE = 'private',

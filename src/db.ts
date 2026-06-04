@@ -31,65 +31,16 @@ export const initDB = async (): Promise<void> => {
     db = new SQL.Database(buffer)
     addColumnIfNotExists(db, 'documents', 'filesize', 'INTEGER DEFAULT 0')
     addColumnIfNotExists(db, 'documents', 'version_number', 'INTEGER DEFAULT 1')
-    db.run(`
-      CREATE TABLE IF NOT EXISTS permissions (
+
+  } else {
+    db = new SQL.Database()
+db.run(`CREATE TABLE IF NOT EXISTS permissions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         target_id INTEGER,
         share_type TEXT NOT NULL,
         permission TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      )`)
-    db.run(`
-      CREATE TABLE IF NOT EXISTS groups (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        owner_id INTEGER NOT NULL,
         created_at TEXT,
-        description TEXT)
-         `)
-    db.run(`
-        CREATE TABLE IF NOT EXISTS group_members (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          group_id INTEGER NOT NULL,
-          user_id INTEGER NOT NULL,
-          role TEXT DEFAULT 'member',
-          created_at TEXT,
-          FOREIGN KEY (group_id) REFERENCES groups(id),
-          FOREIGN KEY (user_id) REFERENCES users(id),
-          UNIQUE (group_id, user_id)
-        )
-      `)
-    db.run(`
-      CREATE TABLE IF NOT EXISTS folders (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        filename TEXT NOT NULL,
-        parent_folder_id INTEGER,
-        group_id INTEGER NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (parent_folder_id) REFERENCES folders(id),
-        FOREIGN KEY (group_id) REFERENCES groups(id)
-      )
-    `)
-  } else {
-    db = new SQL.Database()
-    db.run(`
-      CREATE TABLE IF NOT EXISTS permissions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        document_id INTEGER NOT NULL,
-        group_id INTEGER,
-        share_type TEXT NOT NULL,
-        permission_type TEXT NOT NULL,
-        inherited_permission_id INTEGER,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id),
-        FOREIGN KEY (document_id) REFERENCES documents(id),
-        FOREIGN KEY (group_id) REFERENCES groups(id),
-        FOREIGN KEY (inherited_permission_id) REFERENCES permissions(id)
-      )`)
+        updated_at TEXT)`)
     db.run(`
       CREATE TABLE users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

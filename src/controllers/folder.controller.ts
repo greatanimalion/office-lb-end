@@ -8,6 +8,7 @@ import {
 } from '../services/folder'
 import logger from '../utils/logger'
 import { createPermission } from '../services/permission.service'
+import { shareType } from '../constants/permission'
 
 const getUserId = (req: Request): number => {
   return (req.user as { id: number })?.id
@@ -30,7 +31,7 @@ export const createFolderController = async (
     })
 
     if(result.success){
-      const re=await createPermission(permission,result.id!)
+      const re=await createPermission(permission,result.id!,shareType.FOLDER)
       if(!re.success){
         res.status(400).json({ error: re.message })
         return
