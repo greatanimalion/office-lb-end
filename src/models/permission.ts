@@ -1,4 +1,4 @@
-import { PermissionType } from "../constants/permission"
+
 export type shareType= "user" | "folder" |"document" | "link"|"public"
 export interface Permission {
   id: number

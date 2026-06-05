@@ -15,7 +15,7 @@ export const getEditorConfigController = async (
       res.status(400).json({ error: '无效的文档ID' })
       return
     }
-    const document = await getDocumentById(documentId, userId)
+    const document = await getDocumentById(documentId)
     if (!document) {
       res.status(404).json({ error: '文档不存在或无权访问' })
       return

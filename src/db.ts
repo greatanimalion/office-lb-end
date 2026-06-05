@@ -30,7 +30,8 @@ export const initDB = async (): Promise<void> => {
     const buffer = fs.readFileSync(DB_PATH)
     db = new SQL.Database(buffer)
     addColumnIfNotExists(db, 'users', 'group_id', 'INTEGER')
-
+    addColumnIfNotExists(db, 'documents', 'owner_type', 'TEXT DEFAULT "user"')
+    addColumnIfNotExists(db, 'document_versions', 'filename', 'TEXT NOT NULL DEFAULT "未知"')
   } else {
     db = new SQL.Database()
 db.run(`CREATE TABLE IF NOT EXISTS permissions (

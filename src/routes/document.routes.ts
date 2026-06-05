@@ -15,7 +15,8 @@ import {
   lockDocumentController,
   unlockDocumentController,
   viewDocumentByIdController,
-  getAllDocumentsController
+  getAllMyDocumentsController,
+  uploadDocumentToGroupController,
 } from '../controllers/document.controller'
 import {
   initUploadController,
@@ -45,11 +46,14 @@ router.post('/:id/share', shareDocumentController as any)
 router.delete('/:id/share/:userId', unshareDocumentController as any)
 router.get('/:id/download', downloadDocumentController as any)
 router.post('/:id/track', trackDocumentController as any)
-router.get('/all', getAllDocumentsController as any)
+router.get('/all', getAllMyDocumentsController as any)
 router.get('/:id/versions', getDocumentVersionsController as any)
 router.post('/:id/versions/:version/restore', restoreDocumentVersionController as any)
 router.post('/:id/lock', lockDocumentController as any)
 router.post('/:id/unlock', unlockDocumentController as any)
+router.post('/uploadToGroup', uploadDocumentToGroupController as any)
+
+
 
 router.post('/chunk/init', initUploadController as any)
 router.post('/chunk/upload', chunkUpload.single('chunk'), uploadChunkController as any)

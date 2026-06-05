@@ -77,7 +77,7 @@ export const getFolderListController = async (
   try {
     const {groupId, parentFolderId} = req.query
     if ( isNaN(Number(groupId)) && isNaN(Number(parentFolderId))) {
-      res.status(400).json({ success: false, error: '组ID和父文件夹ID不能为空' })
+      res.status(400).json({ success: false, message: '组ID和父文件夹ID不能为空' })
       return
     }
     const folder = await getFoldersList(Number(groupId), Number(parentFolderId))

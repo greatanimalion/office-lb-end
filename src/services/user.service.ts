@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs'
-import { getDB, saveDB, type User } from '../db'
+import { getDB, saveDB} from '../db'
+import {type  User } from '../models/user'
 import { generateToken } from '../utils/jwt'
 import config from '../config/index'
 
@@ -10,8 +11,9 @@ export interface LoginResult {
     id: number
     email: string
     role: string
+    group_id?: number 
   }
-  error?: string
+  message?: string
 }
 
 export interface CreateUserOptions {
@@ -26,11 +28,11 @@ export interface CreateUserOptions {
 export const login = async (email: string, password: string): Promise<LoginResult> => {
   const db = getDB()
   if (!db) {
-    return { success: false, error: '数据库未初始化' }
+    return { success: false, message: '数据库未初始化' }
   }
   const userResult = db.exec(`SELECT * FROM users WHERE email = "${email}"`)
   if (!userResult.length || !userResult[0].values.length) {
-    return { success: false, error: '邮箱或密码错误' }
+    return { success: false, message: '邮箱或密码错误' }
   }
 
   const row = userResult[0].values[0]
@@ -39,18 +41,19 @@ export const login = async (email: string, password: string): Promise<LoginResul
     username: row[1] as string,
     email: row[2] as string,
     password: row[3] as string,
-    role: row[4] as string
+    role: row[4] as string,
+    group_id: row[7] as number || 0
   }
-
+  console.log(user)
   const isValidPassword = bcrypt.compareSync(password, user.password)
 
   if (!isValidPassword) {
-    return { success: false, error: '邮箱或密码错误' }
+    return { success: false, message: '邮箱或密码错误' }
   }
   const token = generateToken({
     userId: user.id,
     email: user.email,
-    role: user.role
+    role: user.role,
   })
 
   return {
@@ -59,7 +62,8 @@ export const login = async (email: string, password: string): Promise<LoginResul
     user: {
       id: user.id,
       email: user.email,
-      role: user.role
+      role: user.role,
+      group_id: user.group_id
     }
   }
 }

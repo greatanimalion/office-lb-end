@@ -1,25 +1,49 @@
 import fs from 'fs'
 import path from 'path'
-import { fileURLToPath } from 'url'
 import { getDB, saveDB } from '../db'
 import { getStoragePath } from '../utils/file'
-import {Document,DocumentVersion} from '../models/document.js'
+import { type Document as _Document, DocumentVersion } from '../models/document.js'
+import logger from '../utils/logger'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+type Document = Omit<_Document, 'owner_type'>
 
-
-
-
-
-export const getAllDocuments=async (page:number,pageSize:number=10,userId:number)=>{
-  const offset=(page-1)*pageSize
+export const getDocumentVersion = async (documentId: number): Promise<DocumentVersion[]> => {
   const db = getDB()
   if (!db) {
     return []
   }
-  const result = db.exec(`SELECT * FROM documents d WHERE d.owner_id=${userId}  LIMIT ${pageSize} OFFSET ${offset}`)
-  const documents: Document[] = []
+  const result = db.exec(`SELECT * FROM document_versions WHERE document_id=${documentId}`)
+  const versions: DocumentVersion[] = []
+  if (result.length && result[0].values.length) {
+    try {
+      result[0].values.forEach((row: unknown[]) => {
+        versions.push({
+          id: row[0] as number,
+          document_id: row[1] as number,
+          filesize: row[2] as number,
+          version_number: row[3] as number,
+          created_at: new Date(row[5] as string),
+          created_by: row[6] as number,
+          filename: row[7] as string,
+          filepath: row[8] as string,
+        })
+        console.log(row)
+      })
+    } catch (error) {
+      logger.error('Error parsing document version:', error)
+      return []
+    }
+  }
+  return versions
+}
+
+export const getAllDocuments = async (page: number, pageSize: number = 100, targetId: number, owner_type: 'public' | 'user' | 'folder' | 'group') => {
+  const offset = (page - 1) * pageSize
+  const db = getDB()
+  console.log(targetId, owner_type, page, pageSize, offset)
+  if (!db) {return []}
+  const result = db.exec(`SELECT * FROM documents d WHERE d.owner_id=${targetId} AND d.owner_type='${owner_type}' LIMIT ${pageSize} OFFSET ${offset}`)
+  const documents: Omit<Document, 'owner_type'>[] = []
   if (result.length && result[0].values.length) {
     result[0].values.forEach((row: unknown[]) => {
       documents.push({
@@ -36,6 +60,7 @@ export const getAllDocuments=async (page:number,pageSize:number=10,userId:number
         created_at: row[10] as string,
         updated_at: row[11] as string
       })
+      console.log(row)
     })
   }
   return documents
@@ -55,7 +80,7 @@ export const getDocumentsByOwner = async (ownerId: number): Promise<Document[]> 
     ORDER BY d.updated_at DESC
   `)
 
-  const documents: Document[] = []
+  const documents: Omit<Document, 'owner_type'>[] = []
 
   if (result.length && result[0].values.length) {
     result[0].values.forEach((row: unknown[]) => {
@@ -117,13 +142,14 @@ export const getSharedDocuments = async (userId: number): Promise<Document[]> =>
   return documents
 }
 
-export const getDocumentById = async (id: number, userId: number): Promise<Document | null> => {
+export const getDocumentById = async (id: number): Promise<Document | null> => {
   const db = getDB()
   if (!db) {
     return null
   }
   const result = db.exec(`
-    SELECT DISTINCT d.id, d.title, d.filename, d.filepath, d.filesize, d.owner_id, d.status, d.locked, d.locked_by, d.created_at, d.updated_at
+    SELECT DISTINCT d.id, d.title, d.filename, d.filepath, d.filesize,
+     d.owner_id, d.status, d.locked, d.locked_by, d.version_number, d.created_at, d.updated_at, d.owner_type
     FROM documents d where d.id=${id} 
   `)
 
@@ -138,12 +164,12 @@ export const getDocumentById = async (id: number, userId: number): Promise<Docum
     filepath: row[3] as string,
     fileSize: row[4] as number,
     owner_id: row[5] as number,
-    status: row[5] as string,
-    locked: (row[6] as number) === 1,
-    locked_by: row[7] as number | undefined,
-    version_number: row[8] as number,
-    created_at: row[8] as string,
-    updated_at: row[9] as string
+    status: row[6] as string,
+    locked: (row[7] as number) === 1,
+    locked_by: row[8] as number | undefined,
+    version_number: row[9] as number,
+    created_at: row[10] as string,
+    updated_at: row[11] as string,
   }
 }
 export const createDocument = async (
@@ -151,13 +177,14 @@ export const createDocument = async (
   filename: string,
   filepath: string,
   ownerId: number,
-  filesize: number=0
+  filesize: number = 0,
+  owner_type: 'public' | 'user' | 'folder' | 'group' = 'user'
 ): Promise<number> => {
   const db = getDB()
-  if (!db) { throw new Error('数据库未初始化')}
+  if (!db) { throw new Error('数据库未初始化') }
   console.log(title, filename, filepath, ownerId, filesize)
   db.run(
-    `INSERT INTO documents (title, filename, filepath, owner_id, status, filesize) VALUES ("${title}", "${filename}", "${filepath}", ${ownerId}, "active", ${filesize})`
+    `INSERT INTO documents (title, filename, filepath, owner_id, status, filesize, owner_type) VALUES ("${title}", "${filename}", "${filepath}", ${ownerId}, "active", ${filesize}, "${owner_type}")`
   )
   const lastIdResult = db.exec('SELECT last_insert_rowid()')
   const lastId = lastIdResult[0].values[0][0] as number
@@ -167,7 +194,7 @@ export const createDocument = async (
   return lastId
 }
 
-export const createDocumentVersion = async (documentId: number, filepath: string, userId: number, filesize: number=0): Promise<void> => {
+export const createDocumentVersion = async (documentId: number, filepath: string, userId: number, filesize: number = 0): Promise<void> => {
   const db = getDB()
   if (!db) {
     return
@@ -179,50 +206,17 @@ export const createDocumentVersion = async (documentId: number, filepath: string
   const versionsDir = getStoragePath('versions')
   const versionFilename = `${documentId}_v${newVersion}_${Date.now()}${path.extname(filepath)}`
   const versionPath = path.join(versionsDir, versionFilename)
-  
+
   if (!fs.existsSync(versionsDir)) {
     fs.mkdirSync(versionsDir, { recursive: true })
   }
-  
+
   fs.copyFileSync(filepath, versionPath)
   db.run(`
     INSERT INTO document_versions (document_id, version_number, filepath, created_by, filesize)
     VALUES (${documentId}, ${newVersion}, "${versionPath}", ${userId}, ${filesize})
   `)
   saveDB()
-}
-
-export const getDocumentVersions = async (documentId: number): Promise<DocumentVersion[]> => {
-  const db = getDB()
-
-  if (!db) {
-    return []
-  }
-
-  const result = db.exec(`
-    SELECT id, document_id, version_number, filepath, created_at, created_by
-    FROM document_versions
-    WHERE document_id = ${documentId}
-    ORDER BY version_number DESC
-  `)
-
-  const versions: DocumentVersion[] = []
-
-  if (result.length && result[0].values.length) {
-    result[0].values.forEach((row: unknown[]) => {
-      versions.push({
-        id: row[0] as number,
-        document_id: row[1] as number,
-        version_number: row[2] as number,
-        filesize: row[3] as number,
-        filepath: row[3] as string,
-        created_by: row[4] as number,
-        created_at: row[5] as Date
-      })
-    })
-  }
-
-  return versions
 }
 
 export const restoreDocumentVersion = async (documentId: number, versionNumber: number, userId: number): Promise<boolean> => {
@@ -380,7 +374,7 @@ export const deleteDocument = async (id: number, userId: number): Promise<boolea
     fs.unlinkSync(filepath)
   }
 
-  const versions = await getDocumentVersions(id)
+  const versions = await getDocumentVersion(id)
   versions.forEach(version => {
     if (fs.existsSync(version.filepath)) {
       fs.unlinkSync(version.filepath)

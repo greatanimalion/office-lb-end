@@ -1,5 +1,6 @@
 import { getDB, saveDB } from '../db'
 import {type  Group } from '../models/group'
+import logger from '../utils/logger'
 export interface CreateGroupOptions {
   name: string
   description?: string | undefined
@@ -290,4 +291,20 @@ export const isGroupOwner = async (groupId: number, userId: number): Promise<boo
 
   const result = db.exec(`SELECT owner_id FROM \`groups\` WHERE id = ${groupId} AND owner_id = ${userId}`)
   return result.length > 0 && result[0].values.length > 0
+}
+
+export const changeGroup = async (userId: number, groupId: number): Promise<{ success: boolean; message?: string }> => {
+  const db = getDB()
+  if (!db) {
+    return { success: false, message: '数据库未初始化' }
+  }
+  try {
+    db.run(`UPDATE users SET group_id = ${groupId} WHERE id = ${userId}`)
+    saveDB()
+    return { success: true }
+  } catch (err) {
+    console.log(err)
+    logger.error(err)
+    return { success: false, message: '更新用户分组失败' }
+  }
 }

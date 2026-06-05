@@ -4,7 +4,8 @@ import {
   registerController,
   getUsersController,
   getUserByIdController,
-  getAllUsersController
+  getAllUsersController,
+  changeGroupController
 } from '../controllers/user.controller'
 import {
   sendVerificationCodeController,
@@ -18,8 +19,9 @@ const router = Router()
 router.post('/login', authLimiter, loginController as any)
 router.post('/register', authLimiter, registerController as any)
 router.post('/sendcode', authLimiter, sendVerificationCodeController as any)
-router.get('/users', authenticate, getUsersController as any)
-// router.get('/user/:id', authenticate, getUserByIdController as any)
-router.get('/user/all', authenticate, getAllUsersController as any)
 
+router.use(authenticate)
+router.get('/users', getUsersController as any)
+router.get('/user/all', getAllUsersController as any)
+router.post('/user/change-group', changeGroupController as any)
 export default router

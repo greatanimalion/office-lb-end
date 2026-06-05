@@ -1,9 +1,7 @@
 import { Request, Response } from 'express'
 import path from 'path'
-import { fileURLToPath } from 'url'
 import fs from 'fs'
 import {
-  getDocumentsByOwner,
   getSharedDocuments,
   getDocumentById,
   createDocument,
@@ -12,7 +10,7 @@ import {
   shareDocument,
   unshareDocument,
   trackDocumentUpdate,
-  getDocumentVersions,
+  getDocumentVersion,
   restoreDocumentVersion,
   lockDocument,
   unlockDocument,
@@ -20,16 +18,16 @@ import {
 } from '../services/document.service.js'
 import { getStoragePath } from '../utils/file.js'
 import logger from '../utils/logger.js'
+import { type OwnerType } from '../models/document.js'
 
 const getUserId = (req: Request): number => {
   return (req.user as { id: number })?.id
 }
-
 export const viewDocumentByIdController = async (req: Request, res: Response) => {
   try {
     const documentId = parseInt(req.params.documentId, 10)
     const userId = getUserId(req)
-    const document = await getDocumentById(documentId, userId)
+    const document = await getDocumentById(documentId)
     if (!document) {
       res.status(404).json({ error: '文档不存在或无权访问' })
       return
@@ -40,22 +38,51 @@ export const viewDocumentByIdController = async (req: Request, res: Response) =>
     res.status(500).json({ error: '获取文档信息失败' })
   }
 }
-
-export const getAllDocumentsController = async (
-  req: Request,
-  res: Response) => {
+export const uploadDocumentToGroupController = async (req: Request, res: Response) => {
   try {
-    const userId = getUserId(req)
-    const page = parseInt(req.query.page as string, 10) || 1
-    const pageSize = parseInt(req.query.pageSize as string, 10) || 10
-    const documents = await getAllDocuments(page, pageSize,userId)
-    res.json(documents)
+    const { documentId, targetId, owner_type } = req.body
+    if (!targetId || !documentId || !owner_type) {
+      res.status(200).json({ success: false, message: '分组ID、文件ID、文件类型不能为空' })
+      return
+    }
+
+    const _document = await getDocumentById(documentId)
+    if (!_document) {
+      res.status(200).json({ success: false, message: '文档不存在或无权访问' })
+      return
+    }
+    const document = await createDocument(
+      _document.title,
+      _document.filename,
+      _document.filepath,
+      targetId,
+      _document.fileSize,
+      owner_type
+    )
+    if (Number(document)) {
+      res.json({ success: true, message: '上传文档到分组成功' })
+    } else {
+      res.status(200).json({ success: false, message: '上传文档到分组失败' })
+    }
   } catch (error) {
-    logger.error('Get all documents error:', error)
-    res.status(500).json({ error: '获取所有文档列表失败' })
+    logger.error('Upload document to group error:', error)
+    res.status(500).json({ success: false, message: '上传文档到分组失败' })
   }
 }
-
+export const getAllMyDocumentsController = async (
+  req: Request, res: Response) => {
+  try {
+    const ownerId = parseInt(req.query.owner_id as string, 10) || 0
+    const page = parseInt(req.query.page as string, 10) || 1
+    const pageSize = parseInt(req.query.pageSize as string, 10) || 100
+    const owner_type = req.query.owner_type as OwnerType || 'user'
+    const documents = await getAllDocuments(page, pageSize, ownerId, owner_type)
+    res.json({ success: true, data: documents })
+  } catch (error) {
+    logger.error('Get all documents error:', error)
+    res.status(500).json({ success: false, message: '获取所有文档列表失败' })
+  }
+}
 
 export const getSharedDocumentsController = async (
   req: Request,
@@ -82,7 +109,7 @@ export const getDocumentController = async (
       res.status(400).json({ error: '无效的文档ID' })
       return
     }
-    const document = await getDocumentById(documentId, userId)
+    const document = await getDocumentById(documentId)
     if (!document) {
       res.status(404).json({ error: '文档不存在或无权访问' })
       return
@@ -268,7 +295,7 @@ export const downloadDocumentController = async (
       return
     }
 
-    const document = await getDocumentById(documentId, userId)
+    const document = await getDocumentById(documentId)
 
     if (!document) {
       res.status(404).json({ error: '文档不存在或无权访问' })
@@ -313,21 +340,21 @@ export const getDocumentVersionsController = async (
     const userId = getUserId(req)
 
     if (isNaN(documentId)) {
-      res.status(400).json({ error: '无效的文档ID' })
+      res.status(200).json({ success: false, message: '无效的文档ID' })
       return
     }
 
-    const document = await getDocumentById(documentId, userId)
+    const document = await getDocumentById(documentId)
     if (!document) {
       res.status(404).json({ error: '文档不存在或无权访问' })
       return
     }
 
-    const versions = await getDocumentVersions(documentId)
-    res.json(versions)
+    const versions = await getDocumentVersion(documentId)
+    res.json({ success: true, data: versions })
   } catch (error) {
     logger.error('Get document versions error:', error)
-    res.status(500).json({ error: '获取文档版本失败' })
+    res.status(500).json({ success: false, message: '获取文档版本失败' })
   }
 }
 

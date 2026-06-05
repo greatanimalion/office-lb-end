@@ -13,7 +13,7 @@ import {
 } from '../services/group.service'
 import logger from '../utils/logger'
 
-const getUserId = (req: Request): number => {
+export const getUserId = (req: Request): number => {
   return (req.user as { id: number })?.id
 }
 

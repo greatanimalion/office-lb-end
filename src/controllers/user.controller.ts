@@ -2,6 +2,8 @@ import { Request, Response } from 'express'
 import { login, register, getAllUsers, getUserById } from '../services/user.service.js'
 import logger from '../utils/logger.js'
 import { verifyCode } from '../services/verification.service.js'
+import { getUserId } from './group.controller.js'
+import { changeGroup } from '../services/group.service.js'
 
 
 export const getAllUsersController=async (req: Request, res: Response)=>{
@@ -21,13 +23,13 @@ export const loginController = async (
   try {
     const { email, password } = req.body
     if (!email || !password) {
-      res.status(400).json({ message: '邮箱和密码不能为空' })
+      res.status(200).json({ success: false, message: '邮箱和密码不能为空' })
       return
     }
     const result = await login(email, password)
-
+    
     if (!result.success) {
-      res.status(401).json({ message: result.error })
+      res.status(200).json(result)
       return
     }
     res.json({
@@ -36,7 +38,7 @@ export const loginController = async (
     })
   } catch (error) {
     logger.error('Login error:', error)
-    res.status(400).json({ message: '登录失败' })
+    res.status(400).json({success: false, message: '登录失败' })
   }
 }
 
@@ -113,5 +115,31 @@ export const getUserByIdController = async (
   } catch (error) {
     logger.error('Get user error:', error)
     res.status(400).json({ message: '获取用户信息失败' })
+  }
+}
+
+export const changeGroupController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { groupId } = req.body
+    const userId = getUserId(req)
+    if (!groupId) {
+      res.status(200).json({ success: false, message: '分组ID不能为空' })
+      return
+    }
+    const result = await changeGroup(userId,groupId)
+    if (!result.success) {
+      res.status(200).json(result)
+      return
+    }
+    res.json({
+      success: true,
+      message: '用户分组更新成功'
+    })
+  } catch (error) {
+    logger.error('Change group error:', error)
+    res.status(400).json({ success: false, message: '更新用户分组失败' })
   }
 }

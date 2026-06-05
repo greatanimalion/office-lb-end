@@ -102,12 +102,14 @@ export const getFoldersList = async (groupId?: number, parentFolderId?: number):
   }
 
   let query = ''
-  if (groupId === undefined && parentFolderId === undefined) {
+  if (!groupId && !parentFolderId) {
     return []
-  }else if (groupId === undefined && parentFolderId !== undefined) {
+  }else if (!groupId && !!parentFolderId) {
     query = 'SELECT * FROM folders WHERE parent_folder_id = ' + parentFolderId+' ORDER BY created_at ASC'
+  }else if( !!groupId&&!parentFolderId){
+      query='SELECT * FROM folders WHERE group_id = ' + groupId +' AND parent_folder_id IS NULL ORDER BY created_at ASC'
   }else  {
-    query = 'SELECT * FROM folders WHERE group_id = ' + groupId +' AND parent_folder_id IS NULL ORDER BY created_at ASC'
+    query = 'SELECT * FROM folders WHERE group_id = ' + groupId +' AND parent_folder_id='+parentFolderId+' ORDER BY created_at ASC'
   }
 
   const result = db.exec(query)
