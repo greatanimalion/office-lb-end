@@ -1,0 +1,1 @@
+import{Dt as e,G as t,ft as n,n as r}from"./vendor-DL4UWYtC.js";var i=r();function a(){let r=e();return(0,i.jsx)(t,{status:`404`,title:`404`,subTitle:`抱歉，您访问的页面不存在`,extra:(0,i.jsx)(n,{type:`primary`,onClick:()=>r(`/`),children:`返回首页`})})}export{a as default};

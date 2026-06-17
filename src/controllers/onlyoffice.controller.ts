@@ -9,7 +9,6 @@ export const getEditorConfigController = async (
 ): Promise<void> => {
   try {
     const documentId = parseInt(req.params.documentId, 10)
-    const userId = parseInt(req.params.userId, 10)
     const {username,role,id}=req.user as any
     if (isNaN(documentId)) {
       res.status(400).json({ error: '无效的文档ID' })
@@ -24,8 +23,6 @@ export const getEditorConfigController = async (
     const editorConfig = generateEditorConfig(
       document.id,
       document.title,
-      // `http://localhost:${_config.port}/api/documents/${document.id}/download`,
-      `http://localhost:${_config.port}/api/onlyoffice/${document.id}/callback`,
       true,
       {
         id: id.toString(),

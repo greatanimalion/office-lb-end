@@ -60,7 +60,6 @@ export const getAllDocuments = async (page: number, pageSize: number = 100, targ
         created_at: row[10] as string,
         updated_at: row[11] as string
       })
-      console.log(row)
     })
   }
   return documents

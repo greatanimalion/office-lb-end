@@ -1,0 +1,1 @@
+import{n as e}from"./vendor-DL4UWYtC.js";var t=e();function n(){return(0,t.jsxs)(`div`,{children:[(0,t.jsx)(`h2`,{children:`共享文档访问`}),(0,t.jsx)(`p`,{children:`通过外链访问文档（无需登录）`})]})}export{n as default};

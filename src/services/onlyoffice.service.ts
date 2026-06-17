@@ -26,7 +26,6 @@ export interface OnlyOfficeConfig {
 export const generateEditorConfig = (
   documentId: number,
   documentTitle: string,
-  callbackUrl: string,
   canEdit: boolean = true,
   user:{id:string,name:string}
 ): OnlyOfficeConfig => {
@@ -35,7 +34,8 @@ export const generateEditorConfig = (
     type: 'desktop',
     documentServerUrl: config.onlyoffice.documentServerUrl,
     editorConfig: {
-      callbackUrl,
+      //采用127.0.0.1回调，避免跨域问题
+      callbackUrl: `${config.nodeServerUrl}/api/onlyoffice/${documentId}/callback`,
       mode: 'edit',
       lang: "zh-CN",
       user: {

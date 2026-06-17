@@ -104,7 +104,6 @@ export const getDocumentController = async (
 ): Promise<void> => {
   try {
     const documentId = parseInt(req.params.id, 10)
-    const userId = getUserId(req)
     if (isNaN(documentId)) {
       res.status(400).json({ error: '无效的文档ID' })
       return

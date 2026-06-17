@@ -1,0 +1,1 @@
+import{n as e}from"./vendor-DL4UWYtC.js";var t=e();function n(){return(0,t.jsxs)(`div`,{children:[(0,t.jsx)(`h2`,{className:`text-xl font-bold mb-6`,children:`用户管理`}),(0,t.jsx)(`p`,{children:`用户管理页面（管理员）`})]})}export{n as default};

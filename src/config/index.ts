@@ -18,7 +18,7 @@ interface LogsConfig {
   level: string
   dir: string
 }
-
+console.log(process.env.NODE_SERVER_URL)
 interface Config {
   port: number
   nodeServerUrl: string

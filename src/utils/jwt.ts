@@ -1,10 +1,16 @@
 import jwt from 'jsonwebtoken'
 import config from '../config/index.js'
 
-interface TokenPayload {
+export interface TokenPayload {
+  id?: number
   userId: number
+  username: string
   email: string
   role: string
+  provider?: string
+  provider_id?: number
+  exp?: number
+  iat?: number
 }
 
 export const generateToken = (payload: TokenPayload,secret?:string): string => {
@@ -17,7 +23,4 @@ export const verifyToken = (token: string,secret?:string): TokenPayload => {
   return jwt.verify(token, secret || config.auth.jwtSecret) as TokenPayload
 }
 
-export const decodeToken = (token: string): TokenPayload | null => {
-  const decoded = jwt.decode(token)
-  return decoded as TokenPayload | null
-}
+

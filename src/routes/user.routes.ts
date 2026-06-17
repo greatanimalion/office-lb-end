@@ -5,7 +5,8 @@ import {
   getUsersController,
   getUserByIdController,
   getAllUsersController,
-  changeGroupController
+  changeGroupController,
+  getUserSocialAccountController
 } from '../controllers/user.controller'
 import {
   sendVerificationCodeController,
@@ -15,8 +16,11 @@ import { authenticate } from '../middlewares/auth.middleware'
 import { authLimiter } from '../middlewares/rateLimit.middleware'
 
 const router = Router()
+const gitlabLoginController =(req: Request, res: Response)=>{
 
+}
 router.post('/login', authLimiter, loginController as any)
+router.post('/callback/gitlab', authLimiter, gitlabLoginController as any)
 router.post('/register', authLimiter, registerController as any)
 router.post('/sendcode', authLimiter, sendVerificationCodeController as any)
 
@@ -24,4 +28,5 @@ router.use(authenticate)
 router.get('/users', getUsersController as any)
 router.get('/user/all', getAllUsersController as any)
 router.post('/user/change-group', changeGroupController as any)
+router.post('/user/socialAccount', getUserSocialAccountController as any)
 export default router

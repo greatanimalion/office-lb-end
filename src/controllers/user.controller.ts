@@ -1,5 +1,5 @@
-import { Request, Response } from 'express'
-import { login, register, getAllUsers, getUserById } from '../services/user.service.js'
+import { type Request, type Response } from 'express'
+import { login, register, getAllUsers, getUserById, getSocialAccount } from '../services/user.service.js'
 import logger from '../utils/logger.js'
 import { verifyCode } from '../services/verification.service.js'
 import { getUserId } from './group.controller.js'
@@ -21,7 +21,7 @@ export const loginController = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { email, password } = req.body
+    const {email, password } = req.body
     if (!email || !password) {
       res.status(200).json({ success: false, message: '邮箱和密码不能为空' })
       return
@@ -141,5 +141,29 @@ export const changeGroupController = async (
   } catch (error) {
     logger.error('Change group error:', error)
     res.status(400).json({ success: false, message: '更新用户分组失败' })
+  }
+}
+
+
+export const getUserSocialAccountController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    //@ts-ignore
+    const provide=req.user!.provider;const provider_user_id=req.user!.provider_id as number
+    if(!provide||!provider_user_id){
+      res.status(200).json({success: false, message: '令牌解析失败' })
+      return
+    }
+    const socialAccounts =  getSocialAccount(provide,Number(provider_user_id))
+    if (!socialAccounts) {
+      res.status(200).json({success: false, message: '用户社交账号不存在' })
+      return
+    }
+    res.json(socialAccounts)
+  } catch (error) {
+    logger.error('Get social accounts error:', error)
+    res.status(400).json({success: false, message: '获取用户社交账号失败' })
   }
 }

@@ -19,7 +19,7 @@ export const auditAction = (
         const entityId = req.params.id ? parseInt(req.params.id, 10) : undefined
 
         logAction(
-          req.user.id,
+          req.user.id!,
           action,
           entityType,
           entityId,
