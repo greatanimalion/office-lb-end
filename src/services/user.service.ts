@@ -52,9 +52,6 @@ export const login = async (email: string, password: string): Promise<LoginResul
   }
   const token = generateToken({
     id: user.id,
-    userId: user.id,
-    username: user.username,
-    email: user.email,
     role: user.role,
   })
 
@@ -157,103 +154,69 @@ export interface UserSocialAccount {
 }
 
 
-//关联账号
-export const linkSocialAccount = async (
-  userId: number,
-  provider: string,
-  providerUserId: string,
-  accessToken?: string,
-  refreshToken?: string,
-  profileData?: Record<string, unknown>
-): Promise<UserSocialAccount> => {
-  const db = getDB()
-  if (!db) throw new Error('数据库未初始化')
 
-  const existing = db.exec(
-    `SELECT * FROM user_social_accounts WHERE user_id = ${userId} AND provider = "${provider}"`
-  )
-  if (existing.length > 0 && existing[0].values.length > 0) {
-    const row = existing[0].values[0]
-    const now = new Date().toISOString()
-    db.run(
-      `UPDATE user_social_accounts SET
-        provider_user_id = "${providerUserId}",
-        access_token = ${accessToken ? `"${accessToken}"` : 'NULL'},
-        refresh_token = ${refreshToken ? `"${refreshToken}"` : 'NULL'},
-        profile_data = ${profileData ? `'${JSON.stringify(profileData)}'` : 'NULL'},
-        updated_at = "${now}"
-       WHERE id = ${row[0] as number}`
-    )
-    saveDB()
-    return getSocialAccount(provider, Number(providerUserId))!
-  }
 
-  db.run(
-    `INSERT INTO user_social_accounts (user_id, provider, provider_user_id, access_token, refresh_token, profile_data)
-     VALUES (${userId}, "${provider}", "${providerUserId}",
-       ${accessToken ? `"${accessToken}"` : 'NULL'},
-       ${refreshToken ? `"${refreshToken}"` : 'NULL'},
-       ${profileData ? `'${JSON.stringify(profileData)}'` : 'NULL'}
-     )`
-  )
-  saveDB()
-
-  return getSocialAccount(provider, Number(providerUserId))!
-}
-//根据provider 和 providerUserId获取账号
-export const getSocialAccount = (provider: string, providerUserId: number): UserSocialAccount | null => {
-  const db = getDB()
-  if (!db) return null
-
-  const result = db.exec(
-    `SELECT * FROM user_social_accounts WHERE provider = "${provider}" AND provider_user_id = "${providerUserId}"`
-  )
-  if (!result.length || !result[0].values.length) return null
-  return mapSocialAccountRow(result[0].values[0])
-}
-//创建SocialAccount
-export const createSocialAccountOrUpdate = async (
+//创建tampAccount
+export const createTampAccountOrUpdate = async (
+  name: string,
   provider: string,
   providerUserId: number|string,
-  accessToken?: string,
-  refreshToken?: string,
   avatar?: string,
-  profileData?:string
-): Promise<UserSocialAccount> => {
+): Promise<void> => {
   const db = getDB()
   if (!db) throw new Error('数据库未初始化')
 
   const existing = db.exec(
-    `SELECT * FROM user_social_accounts WHERE provider = "${provider}" AND provider_user_id = "${Number(providerUserId)}"`
+    `SELECT * FROM users WHERE provider = "${provider}" AND provider_id = ${Number(providerUserId)}`
   )
+  console.log(existing)
+  
   if (existing.length > 0 && existing[0].values.length > 0) {
     const row = existing[0].values[0]
     const now = new Date().toISOString()
     db.run(
-      `UPDATE user_social_accounts SET
+      `UPDATE users SET
+        username = "${name}",
         avatar = ${avatar ? `"${avatar}"` : 'NULL'},
-        provider_user_id = "${Number(providerUserId)}",
-        access_token = ${accessToken ? `"${accessToken}"` : 'NULL'},
-        refresh_token = ${refreshToken ? `"${refreshToken}"` : 'NULL'},
-        profile_data = ${profileData ? `'${profileData}'` : 'NULL'},
-        updated_at = "${now}"
+        provider_id = ${Number(providerUserId)},
+        last_login_at = "${now}"
        WHERE id = ${row[0] as number}`
     )
     saveDB()
-    return getSocialAccount(provider, Number(providerUserId))!
+    return
   }
-console.log(Number(111111))
   db.run(
-    `INSERT INTO user_social_accounts (provider, provider_user_id, avatar, access_token, refresh_token, profile_data)
-     VALUES ( "${provider}", "${Number(providerUserId)}",
+    `INSERT INTO users (username, provider, provider_id, avatar, last_login_at)
+     VALUES ( "${name}", "${provider}", "${Number(providerUserId)}",
        ${avatar ? `"${avatar}"` : 'NULL'},
-       ${accessToken ? `"${accessToken}"` : 'NULL'},
-       ${refreshToken ? `"${refreshToken}"` : 'NULL'},
-       ${profileData ? `'${profileData}'` : 'NULL'}
+       "${new Date().toISOString()}"
      )`
   )
   saveDB()
-  return getSocialAccount(provider, Number(providerUserId))!
+}
+
+export const getSocialAccountsByUserId = async (provider_id: number|string, provider: string): Promise<User | null> => {
+  const db = getDB()
+  if (!db) return null  
+  const result = db.exec(`SELECT * FROM users WHERE provider_id = ${Number(provider_id)} AND provider = "${provider}"`)
+  let socialAccounts: User | null = null
+  if (result.length && result[0].values.length) {
+    result[0].values.forEach((row: unknown[]) => {
+      socialAccounts = {
+        id: row[0] as number,
+        username: row[1] as string,
+        email: row[2] as string,
+        password: '',
+        role: row[4] as string,
+        group_id: row[5] as number,
+        provider: row[6] as string,
+        provider_id: Number(row[7] as string),
+        last_login_at: row[8] as string,
+        avatar: row[9] as string | null,
+      }
+    })
+  }
+  return socialAccounts || null
 }
 
 export const updateSocialAccountToken = async (
@@ -294,21 +257,5 @@ export const deleteSocialAccount = async (id: number): Promise<boolean> => {
   return true
 }
 
-const mapSocialAccountRow = (row: unknown[]): UserSocialAccount | null => {
-  if (!row || row.length < 9) return null
-  console.log('==row', row)
-  return {
-    id: row[0] as number,
-    avatar: row[1] as string | null,
-    userId: row[2] as number,
-    provider: row[3] as string,
-    providerUserId: row[4] as string,
-    accessToken: row[5] as string | null,
-    refreshToken: row[6] as string | null,
-    profileData: row[7] as string | null,
-    createdAt: row[8] as string,
-    updatedAt: row[9] as string
-  }
-}
 
 export { User }

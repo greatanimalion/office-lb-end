@@ -2,7 +2,7 @@ import passport from 'passport'
 import { Strategy as GitLabStrategy } from 'passport-gitlab2'
 import { Strategy as OAuth2Strategy } from 'passport-oauth2'
 import config from './auth.js'
-import {   createSocialAccountOrUpdate, User } from '../services/user.service'
+import {createTampAccountOrUpdate, User } from '../services/user.service'
 import logger from '../utils/logger.js'
 import dotenv from 'dotenv'
 dotenv.config()
@@ -27,18 +27,16 @@ passport.use(new GitLabStrategy({
   callbackURL: config.gitlab.callbackUrl,
   baseURL: 'http://192.168.0.106/',
 }, async (
-  accessToken: string,
-  refreshToken: string,
+  _accessToken: string,
+  _refreshToken: string,
   profile: any,
   done: (arg0: Error | null, arg1: User | null) => void) => {
   try {
-    if(profile)await createSocialAccountOrUpdate(
+    if(profile)await createTampAccountOrUpdate(
+      profile.displayName,
       profile.provider,
       profile.id,
-      accessToken,
-      refreshToken,
       profile.avatarUrl,
-      profile._raw
     )
     done(null, profile)
   } catch (error) {
@@ -46,6 +44,7 @@ passport.use(new GitLabStrategy({
     done(error as Error, null)
   }
 }))
+
 
 
 export default passport

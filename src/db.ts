@@ -35,13 +35,15 @@ const createAllTables = (db: Database): void => {
 
   db.run(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
+    username TEXT ,
+    email TEXT UNIQUE ,
+    password TEXT ,
     role TEXT DEFAULT 'user',
     group_id INTEGER,
     provider TEXT,
-    provider_id TEXT
+    provider_id INTEGER,
+    last_login_at TEXT,
+    avatar TEXT
   )`)
 
   db.run(`CREATE TABLE IF NOT EXISTS documents (
@@ -160,21 +162,6 @@ const createAllTables = (db: Database): void => {
     FOREIGN KEY (parent_folder_id) REFERENCES folders(id),
     FOREIGN KEY (group_id) REFERENCES groups(id)
   )`)
-
-  db.run(`CREATE TABLE IF NOT EXISTS user_social_accounts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    avatar TEXT,
-    user_id INTEGER ,
-    provider TEXT NOT NULL,
-    provider_user_id INTEGER NOT NULL,
-    access_token TEXT,
-    refresh_token TEXT,
-    profile_data TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    UNIQUE (provider, provider_user_id)
-  )`)
 }
 
 export const initDB = async (): Promise<void> => {
@@ -189,9 +176,13 @@ export const initDB = async (): Promise<void> => {
 
   createAllTables(db)
 
-  addColumnIfNotExists(db, 'users', 'avatar', 'TEXT')
-  addColumnIfNotExists(db, 'documents', 'owner_type', 'TEXT DEFAULT "user"')
-  addColumnIfNotExists(db, 'document_versions', 'filename', 'TEXT NOT NULL DEFAULT "未知"')
+  // addColumnIfNotExists(db, 'users', 'last_login_at', 'TEXT')
+  //删除user_social_accounts表
+  // db.run(`DROP TABLE IF EXISTS users`)
+  // 修改某一行的字段名
+  // db.run(`ALTER TABLE users RENAME COLUMN tenant_id TO target_id`)
+  // addColumnIfNotExists(db, 'documents', 'owner_type', 'TEXT DEFAULT "user"')
+  // addColumnIfNotExists(db, 'document_versions', 'filename', 'TEXT NOT NULL DEFAULT "未知"')
 
   saveDB()
 }

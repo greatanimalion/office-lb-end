@@ -3,9 +3,6 @@ import config from '../config/index.js'
 
 export interface TokenPayload {
   id?: number
-  userId: number
-  username: string
-  email: string
   role: string
   provider?: string
   provider_id?: number

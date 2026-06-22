@@ -21,16 +21,13 @@ export const authenticate = async (
   try {
     const decoded = verifyToken(token)
 
-    if(Number.isNaN(Number(decoded.userId))) {
+    if(Number.isNaN(Number(decoded.id))) {
       res.status(403).json({ error: '无效的访问令牌' })
       return 
     }
 
     (req as AuthenticatedRequest).user = {
-      id: decoded.userId,
-      userId: decoded.userId,
-      username: decoded.username,
-      email: decoded.email,
+      id: decoded.id,
       role: decoded.role,
       provider: decoded.provider,
       provider_id: decoded.provider_id
