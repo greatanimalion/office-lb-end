@@ -12,7 +12,7 @@ import {
   resumeUploadSession,
   getSessionInfo
 } from '../services/upload.service'
-import { createDocument } from '../services/document.service'
+import { createDocument, createDocumentVersion, DocumentRelateDV } from '../services/document.service'
 import logger from '../utils/logger'
 import path from 'path'
 const getUserId = (req: Request): number => {
@@ -31,9 +31,6 @@ export const initUploadController = async (req: Request, res: Response): Promise
     res.json({
       success: true,
       fileId,
-      filename,
-      filesize,
-      totalChunks
     })
   } catch (error) {
     logger.error('Init upload error:', error)
@@ -87,7 +84,7 @@ export const uploadChunkController = async (req: Request, res: Response): Promis
 
 export const mergeChunksController = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { fileId, title, fileSize } = req.body
+    const { fileId, fileName, fileSize } = req.body
     const userId = getUserId(req)
     if (!fileId) {
       res.status(400).json({ error: '缺少文件ID' })
@@ -98,20 +95,13 @@ export const mergeChunksController = async (req: Request, res: Response): Promis
       res.status(400).json({ error: '合并分片失败，分片不完整' })
       return
     }
-    const filename = path.basename(outputPath)
-
-    const documentId = await createDocument(
-      title || filename,
-      filename,
-      outputPath,
-      userId,
-      fileSize
-    )
-    
+    const documentId = await createDocument(userId,'user',fileName)
+    const versionId = await createDocumentVersion(userId, documentId, outputPath, fileSize)
+    DocumentRelateDV(documentId, versionId)
     res.json({
       success: true,
       documentId,
-      filename,
+      fileName,
       filepath: outputPath
     })
   } catch (error) {

@@ -14,9 +14,10 @@ import {
   restoreDocumentVersion,
   lockDocument,
   unlockDocument,
-  getAllDocuments
+  getAllDocuments,
+  updataDocumentV,
+  DocumentRelateDV
 } from '../services/document.service.js'
-import { getStoragePath } from '../utils/file.js'
 import logger from '../utils/logger.js'
 import { type OwnerType } from '../models/document.js'
 
@@ -51,15 +52,13 @@ export const uploadDocumentToGroupController = async (req: Request, res: Respons
       res.status(200).json({ success: false, message: '文档不存在或无权访问' })
       return
     }
-    const document = await createDocument(
-      _document.title,
-      _document.filename,
-      _document.filepath,
+    const id = await createDocument(
       targetId,
-      _document.fileSize,
-      owner_type
+      owner_type,
+      _document.title!,
     )
-    if (Number(document)) {
+    DocumentRelateDV(id,_document.document_v_id!)
+    if (Number(id)) {
       res.json({ success: true, message: '上传文档到分组成功' })
     } else {
       res.status(200).json({ success: false, message: '上传文档到分组失败' })
@@ -72,11 +71,11 @@ export const uploadDocumentToGroupController = async (req: Request, res: Respons
 export const getAllMyDocumentsController = async (
   req: Request, res: Response) => {
   try {
-    const ownerId = parseInt(req.query.owner_id as string, 10) || 0
+    const userId = getUserId(req)
     const page = parseInt(req.query.page as string, 10) || 1
     const pageSize = parseInt(req.query.pageSize as string, 10) || 100
     const owner_type = req.query.owner_type as OwnerType || 'user'
-    const documents = await getAllDocuments(page, pageSize, ownerId, owner_type)
+    const documents = await getAllDocuments(page, pageSize, userId, owner_type)
     res.json({ success: true, data: documents })
   } catch (error) {
     logger.error('Get all documents error:', error)
@@ -114,12 +113,12 @@ export const getDocumentController = async (
       return
     }
 
-    const filePath = document.filepath
+    const filePath = document.filepath!
     if (!fs.existsSync(filePath)) {
       res.status(404).json({ error: '文件不存在' })
       return console.log(filePath)
     }
-    console.log(filePath)
+    
     const stat = fs.statSync(filePath)
     const contentTypeMap: any = {
       '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -151,16 +150,11 @@ export const createDocumentController = async (
       return
     }
 
-    const newFilename = `${Date.now()}_${file.originalname}`
-    const documentsDir = path.join(getStoragePath(), 'documents')
 
-    const newPath = path.join(documentsDir, newFilename)
     const documentId = await createDocument(
-      title || file.originalname,
-      newFilename,
-      newPath,
       userId,
-      file.size || 0
+      'user',
+      title || file.originalname,
     )
 
     res.status(201).json({ id: documentId, title: title || file.originalname })
@@ -301,6 +295,7 @@ export const downloadDocumentController = async (
       return
     }
 
+
     res.download(document.filepath, document.filename)
   } catch (error) {
     logger.error('Download document error:', error)
@@ -336,8 +331,6 @@ export const getDocumentVersionsController = async (
 ): Promise<void> => {
   try {
     const documentId = parseInt(req.params.id, 10)
-    const userId = getUserId(req)
-
     if (isNaN(documentId)) {
       res.status(200).json({ success: false, message: '无效的文档ID' })
       return

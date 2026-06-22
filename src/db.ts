@@ -48,30 +48,27 @@ const createAllTables = (db: Database): void => {
 
   db.run(`CREATE TABLE IF NOT EXISTS documents (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    filename TEXT NOT NULL,
-    filepath TEXT NOT NULL,
+    document_v_id INTEGER,
     owner_id INTEGER NOT NULL,
-    status TEXT DEFAULT 'active',
-    locked INTEGER DEFAULT 0,
-    filesize INTEGER NOT NULL,
-    locked_by INTEGER,
+    owner_type TEXT NOT NULL,
+    title TEXT,
     version_number INTEGER DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (owner_id) REFERENCES users(id)
-  )`)
+    locked INTEGER DEFAULT 0,
+    locked_by INTEGER,
+    status INTEGER DEFAULT 1,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`)
 
   db.run(`CREATE TABLE IF NOT EXISTS document_versions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     document_id INTEGER NOT NULL,
-    filesize INTEGER NOT NULL,
-    version_number INTEGER NOT NULL,
-    filepath TEXT NOT NULL,
+    filepath TEXT,
+    filesize INTEGER,
+    v_number INTEGER,
+    alter_by INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    created_by INTEGER NOT NULL,
     FOREIGN KEY (document_id) REFERENCES documents(id),
-    FOREIGN KEY (created_by) REFERENCES users(id)
+    FOREIGN KEY (alter_by) REFERENCES users(id)
   )`)
 
   db.run(`CREATE TABLE IF NOT EXISTS document_shares (

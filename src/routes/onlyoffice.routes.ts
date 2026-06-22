@@ -3,7 +3,7 @@ import {
   getEditorConfigController,
   callbackController
 } from '../controllers/onlyoffice.controller'
-import { authenticate, optionalAuth } from '../middlewares/auth.middleware'
+import { authenticate } from '../middlewares/auth.middleware'
 
 const router = Router()
 

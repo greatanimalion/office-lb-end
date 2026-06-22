@@ -65,6 +65,7 @@ export enum PermissionType {
 # 版本控制相关
 
 - 系统内除公共空间外，其他组内文件，私有空间文件全部具有版本控制功能
+- 系统还原只还原版本内容，不对文件权限进行还原
 
 ## 版本控制细节
 
@@ -81,11 +82,56 @@ export enum PermissionType {
 # 系统继承第三方登录，分别是钉钉，gitlab，微信
 
 新建social_account表
-  - id 主键
-  - user_id 用户id
-  - provider 第三方登录平台
-  - account 第三方登录账号
-  - token 第三方登录token
+
+- id 主键
+- user_id 用户id
+- provider 第三方登录平台
+- account 第三方登录账号
+- token 第三方登录token
   ...
+
 ## 为了避免复杂的账号数据融合情况，本系统采用以下机制
+
 - 用户必须注册本系统，并且绑定第三方登录账号后，才可以使用第三方登录功能
+
+# 文件上传流程
+
+- 用户必须先在私有空间上传，然后进入到组内指定文件夹下，点击上传文件后才能上传到组内指定文件夹下，并且受到组内文件夹的权限控制
+
+## 文件上传细节
+
+系统采用操作系统的文件节点机制，采用文档节点，版本节点，属性内容分为两类，一类为文件属性随版本号变化，另一类为不变属性。
+
+- 版本回溯-不变属性：文档权限，文档创建时间等
+- 版本回溯-变化属性：文档的标题，文档的文件类型，md5值，文件大小，文件路径等
+  表如下
+```js
+export interface DocumentVersion {
+  id: number
+  title: string
+  document_id: number//集合映射，多对一关系
+  filename: string
+  filepath: string
+  fileSize: number
+  v_number: number
+  alter_by: number//修改的用户id
+  created_at: string
+}
+export type OwnerType = 'group'|'user'|'folder'|'public'
+export interface Document {
+  id: number
+  document_v_id: number//确定当前的文档版本
+  created_by: number
+  created_at: Date
+  version_number: number//用于记录最新的文档版本，方便下一次修改创建的文档版本号加一
+  locked_by?: number//文档被锁定时，locked_by为锁定用户的id
+  status: string//文档状态，active为活跃，inactive为已删除
+  owner_id: number
+  owner_type: OwnerType//ownerID与ownerType对应，用于记录文档的归属关系
+  locked: boolean
+  permission: string
+}
+```
+1. 用户上传文件流合并成功后，后端会立刻创建对应的文件节点（对应document表） 。
+2. 文件节点创建完成后会立刻创建版本节点（对应document_version表）。
+3. 立刻更新document表的document_v_id字段，将其指向新创建的版本节点。

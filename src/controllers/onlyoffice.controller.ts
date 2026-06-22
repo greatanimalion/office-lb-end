@@ -3,13 +3,14 @@ import { generateEditorConfig, handleCallback } from '../services/onlyoffice.ser
 import { getDocumentById } from '../services/document.service.js'
 import logger from '../utils/logger.js'
 import _config from '../config/index.js'
+import { getUserById } from '../services/user.service.js'
 export const getEditorConfigController = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const documentId = parseInt(req.params.documentId, 10)
-    const {username,role,id}=req.user as any
+    const {id}=req.user as any
     if (isNaN(documentId)) {
       res.status(400).json({ error: '无效的文档ID' })
       return
@@ -19,14 +20,18 @@ export const getEditorConfigController = async (
       res.status(404).json({ error: '文档不存在或无权访问' })
       return
     }
-
+    const u=await getUserById(id)
+    if (!u) {
+      res.status(200).json({ error: '用户不存在' })
+      return
+    }
     const editorConfig = generateEditorConfig(
-      document.id,
-      document.title,
+      document.id!,
+      document.title!,
       true,
       {
         id: id.toString(),
-        name: username
+        name: u.username
       }
     )
 
