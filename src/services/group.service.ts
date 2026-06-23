@@ -137,7 +137,8 @@ export const getAllGroups = async (userId: number): Promise<Group[]> => {
     return []
   }
 
-  const result = db.exec(`SELECT * FROM groups ORDER BY created_at DESC`)
+  const result = db.exec(`SELECT * FROM groups JOIN group_members ON groups.id = group_members.group_id 
+    WHERE user_id = ${userId} ORDER BY created_at DESC`)
   const groups: Group[] = []
 
   if (result.length && result[0].values.length) {
@@ -256,7 +257,6 @@ export const getGroupMembers = async (groupId: number): Promise<GroupMember[]> =
   if (!db) {
     return []
   }
-
   const result = db.exec(`
     SELECT gm.id, gm.group_id, gm.user_id, u.username, u.email, gm.role, gm.created_at
     FROM group_members gm

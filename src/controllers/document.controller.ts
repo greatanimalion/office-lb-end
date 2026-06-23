@@ -15,8 +15,8 @@ import {
   lockDocument,
   unlockDocument,
   getAllDocuments,
-  updataDocumentV,
-  DocumentRelateDV
+  DocumentRelateDV,
+  createDocumentVersion
 } from '../services/document.service.js'
 import logger from '../utils/logger.js'
 import { type OwnerType } from '../models/document.js'
@@ -42,6 +42,7 @@ export const viewDocumentByIdController = async (req: Request, res: Response) =>
 export const uploadDocumentToGroupController = async (req: Request, res: Response) => {
   try {
     const { documentId, targetId, owner_type } = req.body
+    const userId = getUserId(req)
     if (!targetId || !documentId || !owner_type) {
       res.status(200).json({ success: false, message: '分组ID、文件ID、文件类型不能为空' })
       return
@@ -57,7 +58,14 @@ export const uploadDocumentToGroupController = async (req: Request, res: Respons
       owner_type,
       _document.title!,
     )
-    DocumentRelateDV(id,_document.document_v_id!)
+    const documentVersionId = await createDocumentVersion(
+      userId,
+      id,
+      _document.filepath!,
+      _document.fileSize!,
+      _document.v_number!,
+    )
+    DocumentRelateDV(id, documentVersionId)
     if (Number(id)) {
       res.json({ success: true, message: '上传文档到分组成功' })
     } else {
@@ -74,8 +82,9 @@ export const getAllMyDocumentsController = async (
     const userId = getUserId(req)
     const page = parseInt(req.query.page as string, 10) || 1
     const pageSize = parseInt(req.query.pageSize as string, 10) || 100
+    const ownerId = parseInt(req.query.owner_id as string, 10) || userId
     const owner_type = req.query.owner_type as OwnerType || 'user'
-    const documents = await getAllDocuments(page, pageSize, userId, owner_type)
+    const documents = await getAllDocuments(page, pageSize, ownerId, owner_type)
     res.json({ success: true, data: documents })
   } catch (error) {
     logger.error('Get all documents error:', error)
@@ -296,7 +305,7 @@ export const downloadDocumentController = async (
     }
 
 
-    res.download(document.filepath, document.filename)
+    // res.download(document.filepath, document.filename)
   } catch (error) {
     logger.error('Download document error:', error)
     res.status(500).json({ error: '下载文档失败' })
@@ -350,31 +359,29 @@ export const getDocumentVersionsController = async (
   }
 }
 
-export const restoreDocumentVersionController = async (
+export const revertDocumentVersionController = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    const documentId = parseInt(req.params.id, 10)
-    const versionNumber = parseInt(req.params.version, 10)
+   const { documentId, versionId} = req.body
     const userId = getUserId(req)
-
-    if (isNaN(documentId) || isNaN(versionNumber)) {
-      res.status(400).json({ error: '无效的参数' })
+    if (isNaN(+documentId) || isNaN(+versionId)) {
+      res.status(200).json({ success: false, message: '无效的参数' })
       return
     }
 
-    const success = await restoreDocumentVersion(documentId, versionNumber, userId)
+    const success = await restoreDocumentVersion(+documentId, +versionId, userId)
 
     if (!success) {
-      res.status(403).json({ error: '无权恢复此版本或版本不存在' })
+      res.status(200).json({ success: false, message: '无权恢复此版本或版本不存在' })
       return
     }
 
     res.json({ success: true })
   } catch (error) {
     logger.error('Restore document version error:', error)
-    res.status(500).json({ error: '恢复文档版本失败' })
+    res.status(500).json({ success: false, message: '恢复文档版本失败' })
   }
 }
 

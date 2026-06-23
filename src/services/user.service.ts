@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs'
-import { getDB, saveDB} from '../db'
-import {type  User } from '../models/user'
+import { getDB, saveDB } from '../db'
+import { type User } from '../models/user'
 import { generateToken } from '../utils/jwt'
 import config from '../config/index'
 
@@ -11,18 +11,20 @@ export interface LoginResult {
     id: number
     email: string
     role: string
-    group_id?: number 
+    group_id?: number
+    avatar?: string | null
+    username?: string
   }
   message?: string
 }
 
 export interface CreateUserOptions {
-  username: string
   email: string
   role?: string
   provider?: string
   providerId?: string
   password?: string
+  username?: string
 }
 
 export const login = async (email: string, password: string): Promise<LoginResult> => {
@@ -41,11 +43,11 @@ export const login = async (email: string, password: string): Promise<LoginResul
     username: row[1] as string,
     email: row[2] as string,
     password: row[3] as string,
+    avatar: row[9] as string | null,
     role: row[4] as string,
     group_id: row[7] as number || 0
   }
-  console.log(user)
-  const isValidPassword = bcrypt.compareSync(password, user.password)
+  const isValidPassword = bcrypt.compareSync(password, user.password!)
 
   if (!isValidPassword) {
     return { success: false, message: '邮箱或密码错误' }
@@ -60,8 +62,10 @@ export const login = async (email: string, password: string): Promise<LoginResul
     token,
     user: {
       id: user.id,
+      username: user.username,
       email: user.email,
       role: user.role,
+      avatar: user.avatar,
       group_id: user.group_id
     }
   }
@@ -160,7 +164,7 @@ export interface UserSocialAccount {
 export const createTampAccountOrUpdate = async (
   name: string,
   provider: string,
-  providerUserId: number|string,
+  providerUserId: number | string,
   avatar?: string,
 ): Promise<void> => {
   const db = getDB()
@@ -170,7 +174,7 @@ export const createTampAccountOrUpdate = async (
     `SELECT * FROM users WHERE provider = "${provider}" AND provider_id = ${Number(providerUserId)}`
   )
   console.log(existing)
-  
+
   if (existing.length > 0 && existing[0].values.length > 0) {
     const row = existing[0].values[0]
     const now = new Date().toISOString()
@@ -195,9 +199,9 @@ export const createTampAccountOrUpdate = async (
   saveDB()
 }
 
-export const getSocialAccountsByUserId = async (provider_id: number|string, provider: string): Promise<User | null> => {
+export const getSocialAccountsByUserId = async (provider_id: number | string, provider: string): Promise<User | null> => {
   const db = getDB()
-  if (!db) return null  
+  if (!db) return null
   const result = db.exec(`SELECT * FROM users WHERE provider_id = ${Number(provider_id)} AND provider = "${provider}"`)
   let socialAccounts: User | null = null
   if (result.length && result[0].values.length) {

@@ -1,3 +1,4 @@
+process.env.TZ = 'Asia/Shanghai'//设置时区为上海
 import dotenv from 'dotenv'
 dotenv.config()
 

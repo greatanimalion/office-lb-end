@@ -73,3 +73,19 @@ export const getStoragePath = (subdir?: string): string => {
   }
   return basePath
 }
+
+export const downloadFile = async (url: string,name:string=new Date().getTime().toString()): Promise<{
+  filePath:string
+  size:number
+}> => {
+  const response = await fetch(url)
+  const arrayBuffer = await response.arrayBuffer()
+  const buffer = Buffer.from(arrayBuffer)
+  const tempFilePath = path.join(getStoragePath('documents'), name)
+  fs.writeFileSync(tempFilePath, buffer)
+  const size = getFileSize(tempFilePath)
+  return {
+    filePath: tempFilePath,
+    size
+  }
+}

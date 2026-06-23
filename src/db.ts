@@ -7,6 +7,7 @@ import { ensureDirectoryExists } from './utils/file.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 let db: Database | null = null
+
 const DB_PATH = process.env.DB_DATABASE || path.join(__dirname, '../database.sqlite')
 
 const addColumnIfNotExists = (db: Database, tableName: string, columnName: string, columnDef: string): void => {
@@ -52,11 +53,10 @@ const createAllTables = (db: Database): void => {
     owner_id INTEGER NOT NULL,
     owner_type TEXT NOT NULL,
     title TEXT,
-    version_number INTEGER DEFAULT 1,
     locked INTEGER DEFAULT 0,
     locked_by INTEGER,
     status INTEGER DEFAULT 1,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    updated_at DATETIME DEFAULT (datetime('now', 'localtime'))
     )`)
 
   db.run(`CREATE TABLE IF NOT EXISTS document_versions (
@@ -66,7 +66,7 @@ const createAllTables = (db: Database): void => {
     filesize INTEGER,
     v_number INTEGER,
     alter_by INTEGER,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT (datetime('now', 'localtime')),
     FOREIGN KEY (document_id) REFERENCES documents(id),
     FOREIGN KEY (alter_by) REFERENCES users(id)
   )`)
@@ -77,7 +77,7 @@ const createAllTables = (db: Database): void => {
     user_id INTEGER NOT NULL,
     permission TEXT NOT NULL,
     shared_by INTEGER NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT (datetime('now', 'localtime')),
     FOREIGN KEY (document_id) REFERENCES documents(id),
     FOREIGN KEY (user_id) REFERENCES users(id)
   )`)
@@ -91,7 +91,7 @@ const createAllTables = (db: Database): void => {
     max_views INTEGER DEFAULT 0,
     views INTEGER DEFAULT 0,
     permissions TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT (datetime('now', 'localtime')),
     FOREIGN KEY (document_id) REFERENCES documents(id)
   )`)
 
@@ -104,7 +104,7 @@ const createAllTables = (db: Database): void => {
     details TEXT,
     ip_address TEXT,
     user_agent TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT (datetime('now', 'localtime')),
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (document_id) REFERENCES documents(id)
   )`)
@@ -116,8 +116,8 @@ const createAllTables = (db: Database): void => {
     total_chunks INTEGER NOT NULL,
     uploaded_chunks TEXT NOT NULL,
     hash TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT (datetime('now', 'localtime')),
+    updated_at DATETIME DEFAULT (datetime('now', 'localtime'))
   )`)
 
   db.run(`CREATE TABLE IF NOT EXISTS verification_codes (
@@ -127,7 +127,7 @@ const createAllTables = (db: Database): void => {
     target TEXT NOT NULL,
     expires_at DATETIME NOT NULL,
     used INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT (datetime('now', 'localtime'))
   )`)
 
   db.run(`CREATE TABLE IF NOT EXISTS groups (
@@ -154,8 +154,8 @@ const createAllTables = (db: Database): void => {
     filename TEXT NOT NULL,
     parent_folder_id INTEGER,
     group_id INTEGER NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT (datetime('now', 'localtime')),
+    updated_at DATETIME DEFAULT (datetime('now', 'localtime')),
     FOREIGN KEY (parent_folder_id) REFERENCES folders(id),
     FOREIGN KEY (group_id) REFERENCES groups(id)
   )`)
@@ -170,7 +170,6 @@ export const initDB = async (): Promise<void> => {
   } else {
     db = new SQL.Database()
   }
-
   createAllTables(db)
 
   // addColumnIfNotExists(db, 'users', 'last_login_at', 'TEXT')
