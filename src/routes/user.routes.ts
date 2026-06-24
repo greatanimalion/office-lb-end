@@ -25,8 +25,9 @@ router.post('/register', authLimiter, registerController as any)
 router.post('/sendcode', authLimiter, sendVerificationCodeController as any)
 
 router.use(authenticate)
-router.get('/users', getUsersController as any)
 router.get('/user/all', getAllUsersController as any)
+router.get('/user/:id', getUserByIdController as any)
+router.get('/users', getUsersController as any)
 router.post('/user/change-group', changeGroupController as any)
 router.post('/user/socialAccount', getUserSocialAccountController as any)
 export default router

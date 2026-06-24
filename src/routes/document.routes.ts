@@ -1,4 +1,4 @@
-import  { Router } from 'express'
+import  { RequestHandler, Router } from 'express'
 import multer from 'multer'
 import {
   getSharedDocumentsController,
@@ -15,8 +15,8 @@ import {
   lockDocumentController,
   unlockDocumentController,
   viewDocumentByIdController,
-  getAllMyDocumentsController,
-  uploadDocumentToGroupController,
+  getAllDocumentsController,
+  uploadDocumentController,
 } from '../controllers/document.controller'
 import {
   initUploadController,
@@ -34,33 +34,33 @@ const chunkStorage = multer.memoryStorage()
 const chunkUpload = multer({ storage: chunkStorage })
 
 
-router.get('/d/:id', getDocumentController as any)
+router.get('/d/:id', getDocumentController as RequestHandler)
 
 router.use(authenticate)
-router.get('/view', viewDocumentByIdController as any)
-router.get('/shared', getSharedDocumentsController as any)
-router.post('/create', createUploadMiddleware('file'), createDocumentController as any)
-router.put('/:id', updateDocumentController as any)
-router.delete('/:id', deleteDocumentController as any)
-router.post('/:id/share', shareDocumentController as any)
-router.delete('/:id/share/:userId', unshareDocumentController as any)
-router.get('/:id/download', downloadDocumentController as any)
-router.post('/:id/track', trackDocumentController as any)
-router.get('/all', getAllMyDocumentsController as any)
-router.get('/:id/versions', getDocumentVersionsController as any)
-router.post('/revert', revertDocumentVersionController as any)
+router.get('/view', viewDocumentByIdController as RequestHandler)
+router.get('/shared', getSharedDocumentsController as RequestHandler)
+router.post('/create', createUploadMiddleware('file'), createDocumentController as RequestHandler)
+router.put('/:id', updateDocumentController as RequestHandler)
+// router.delete('/:id', deleteDocumentController as RequestHandler)
+// router.post('/:id/share', shareDocumentController as RequestHandler)
+// router.delete('/:id/share/:userId', unshareDocumentController as RequestHandler)
+// router.get('/:id/download', downloadDocumentController as RequestHandler)
+// router.post('/:id/track', trackDocumentController as RequestHandler)
+router.get('/all', getAllDocumentsController as RequestHandler)
+router.get('/:id/versions', getDocumentVersionsController as RequestHandler)
+router.post('/revert', revertDocumentVersionController as RequestHandler)
 // router.post('/:id/lock', lockDocumentController as any)
 // router.post('/:id/unlock', unlockDocumentController as any)
-router.post('/uploadToGroup', uploadDocumentToGroupController as any)
+router.post('/uploadTo', uploadDocumentController as RequestHandler)
 
 
 
-router.post('/chunk/init', initUploadController as any)
-router.post('/chunk/upload', chunkUpload.single('chunk'), uploadChunkController as any)
-router.post('/chunk/merge', mergeChunksController as any)
-router.get('/chunk/progress/:fileId', getUploadProgressController as any)
-router.delete('/chunk/cancel/:fileId', cancelUploadController as any)
-router.get('/chunk/sessions', listUploadSessionsController as any)
-router.post('/chunk/verify', verifyChunkController as any)
+router.post('/chunk/init', initUploadController as RequestHandler)
+router.post('/chunk/upload', chunkUpload.single('chunk'), uploadChunkController as RequestHandler)
+router.post('/chunk/merge', mergeChunksController as RequestHandler)
+router.get('/chunk/progress/:fileId', getUploadProgressController as RequestHandler)
+router.delete('/chunk/cancel/:fileId', cancelUploadController as RequestHandler)
+router.get('/chunk/sessions', listUploadSessionsController as RequestHandler)
+router.post('/chunk/verify', verifyChunkController as RequestHandler)
 
 export default router

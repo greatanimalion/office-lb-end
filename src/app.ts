@@ -11,7 +11,7 @@ import { errorHandler, notFoundHandler } from './middlewares/error.middleware'
 import { apiLimiter } from './middlewares/rateLimit.middleware'
 import { ensureDirectoryExists } from './utils/file'
 import logger from './utils/logger'
-// import { initMeiliSearch } from './services/search.service'
+import { initMeiliSearch } from './utils/MeiliSearch'
 import './config/passport'
 import { getDB, saveDB } from './db'
 
@@ -19,6 +19,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 export const createApp = (): Application => {
+  initMeiliSearch()
   const app = express()
   app.use(cors())
   app.use(express.json())
@@ -66,7 +67,6 @@ export const createApp = (): Application => {
 
 export const startServer = async (): Promise<void> => {
   const app = createApp()
-  // await initMeiliSearch()
   const server = app.listen(config.port, () => {
     logger.info(`Server running on port ${config.port} http://localhost:${config.port}`)
     logger.info(`Environment: ${config.nodeEnv}`)
@@ -102,4 +102,5 @@ function makSureAdminUserExist() {
   }
   saveDB()
 }
+
 

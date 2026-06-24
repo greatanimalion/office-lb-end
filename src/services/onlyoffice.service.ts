@@ -2,7 +2,7 @@ import config from '../config/index'
 import { downloadFile } from '../utils/file'
 import { generateToken } from '../utils/jwt'
 import logger from '../utils/logger'
-import { createDocumentVersion, DocumentRelateDV, getDocumentById } from './document.service'
+import { createDocumentVersion, DocumentRelateDV, getDocumentById, getMaxVersionNumber } from './document.service'
 
 export interface OnlyOfficeConfig {
   documentServerUrl: string
@@ -120,7 +120,7 @@ export const generateEditorConfig = (
   documentId: number,
   documentTitle: string,
   canEdit: boolean = true,
-  user: { id: string, name: string },
+  user: { id: string, name: string,avatar: string },
   version: number,
   asyncEdit: boolean = true
 ): OnlyOfficeConfig => {
@@ -134,7 +134,8 @@ export const generateEditorConfig = (
       lang: "zh-CN",
       user: {
         id: user.id,
-        name: user.name
+        name: user.name,
+        image: user.avatar,
       },
       customization: {
         waterMark: {
@@ -175,8 +176,10 @@ export const handleCallback = async (body: any): Promise<void> => {
         logger.error(`Document ${key} is not a valid document ID`)
         break
       }
+      //获取最大版本号
+      const maxVersion = await getMaxVersionNumber(id)
       const filePath = await downloadFile(url, `${new Date().getTime()}_v_${id}.`+filetype)
-      const vId = await createDocumentVersion(Number(users[0]), id, filePath.filePath, filePath.size,version+1)
+      const vId = await createDocumentVersion(Number(users[0]), id, filePath.filePath, filePath.size,maxVersion+1)
       DocumentRelateDV(id, vId)//更新节点的版本
       break
     case 3:

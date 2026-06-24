@@ -21,6 +21,7 @@ import {
 import logger from '../utils/logger.js'
 import { type OwnerType } from '../models/document.js'
 
+
 const getUserId = (req: Request): number => {
   return (req.user as { id: number })?.id
 }
@@ -39,22 +40,29 @@ export const viewDocumentByIdController = async (req: Request, res: Response) =>
     res.status(500).json({ error: '获取文档信息失败' })
   }
 }
-export const uploadDocumentToGroupController = async (req: Request, res: Response) => {
+
+export const uploadDocumentController = async (req: Request, res: Response) => {
   try {
-    const { documentId, targetId, owner_type } = req.body
+    let { documentId, targetId, owner_type } = req.body
     const userId = getUserId(req)
-    if (!targetId || !documentId || !owner_type) {
-      res.status(200).json({ success: false, message: '分组ID、文件ID、文件类型不能为空' })
+    const isPublic = owner_type === 'public'
+    if (!isPublic) {
+      if (!targetId || !documentId || !owner_type) {
+        res.status(200).json({ success: false, message: 'ID、文件ID、上传类型不能为空' })
+        return
+      }
+    }
+    if (!documentId || !owner_type) {
+      res.status(200).json({ success: false, message: '文件ID、上传类型不能为空' })
       return
     }
-
     const _document = await getDocumentById(documentId)
     if (!_document) {
       res.status(200).json({ success: false, message: '文档不存在或无权访问' })
       return
     }
     const id = await createDocument(
-      targetId,
+      isPublic ? 0 : Number(targetId),
       owner_type,
       _document.title!,
     )
@@ -76,15 +84,25 @@ export const uploadDocumentToGroupController = async (req: Request, res: Respons
     res.status(500).json({ success: false, message: '上传文档到分组失败' })
   }
 }
-export const getAllMyDocumentsController = async (
+
+export const getAllDocumentsController = async (
   req: Request, res: Response) => {
+  const page = parseInt(req.query.page as string, 10) || 1
+  const pageSize = parseInt(req.query.pageSize as string, 10) || 100
+  let ownerId = parseInt(req.query.owner_id as string, 10)
+  const owner_type = req.query.owner_type as OwnerType
+  ownerId = owner_type == 'public' ? 0 : ownerId
+  if (!ownerId || !owner_type) {
+    if (owner_type == 'public') {
+      ownerId = 0
+    }
+    else {
+      res.status(200).json({ success: false, message: 'ID、上传类型不能为空' })
+      return
+    }
+  }
   try {
-    const userId = getUserId(req)
-    const page = parseInt(req.query.page as string, 10) || 1
-    const pageSize = parseInt(req.query.pageSize as string, 10) || 100
-    const ownerId = parseInt(req.query.owner_id as string, 10) || userId
-    const owner_type = req.query.owner_type as OwnerType || 'user'
-    const documents = await getAllDocuments(page, pageSize, ownerId, owner_type)
+    const documents =  getAllDocuments(page, pageSize, ownerId, owner_type)
     res.json({ success: true, data: documents })
   } catch (error) {
     logger.error('Get all documents error:', error)
@@ -127,12 +145,13 @@ export const getDocumentController = async (
       res.status(404).json({ error: '文件不存在' })
       return console.log(filePath)
     }
-    
+
     const stat = fs.statSync(filePath)
     const contentTypeMap: any = {
       '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      '.pdf': 'application/pdf',
     };
     const ext = path.extname(filePath).toLowerCase();
     res.setHeader('Content-Type', contentTypeMap[ext] || 'application/octet-stream');
@@ -352,7 +371,7 @@ export const getDocumentVersionsController = async (
     }
 
     const versions = await getDocumentVersion(documentId)
-    res.json({ success: true, data: versions })
+    res.json({ success: true, data: versions, currentVersion: document.v_number })
   } catch (error) {
     logger.error('Get document versions error:', error)
     res.status(500).json({ success: false, message: '获取文档版本失败' })
@@ -364,7 +383,7 @@ export const revertDocumentVersionController = async (
   res: Response
 ): Promise<void> => {
   try {
-   const { documentId, versionId} = req.body
+    const { documentId, versionId } = req.body
     const userId = getUserId(req)
     if (isNaN(+documentId) || isNaN(+versionId)) {
       res.status(200).json({ success: false, message: '无效的参数' })

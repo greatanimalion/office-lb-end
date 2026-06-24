@@ -56,7 +56,9 @@ export const login = async (email: string, password: string): Promise<LoginResul
     id: user.id,
     role: user.role,
   })
-
+  //更新登录时间
+  db.run(`UPDATE users SET last_login_at = datetime('now', 'localtime') WHERE id = ${user.id}`)
+  saveDB()
   return {
     success: true,
     token,
@@ -103,7 +105,7 @@ export const getUserById = async (id: number): Promise<User | null> => {
     return null
   }
 
-  const result = db.exec(`SELECT * FROM users WHERE id = ${id}`)
+  const result = db.exec(`SELECT id, username, email, password, avatar, role FROM users WHERE id = ${id}`)
 
   if (!result.length || !result[0].values.length) {
     return null
@@ -115,19 +117,20 @@ export const getUserById = async (id: number): Promise<User | null> => {
     username: row[1] as string,
     email: row[2] as string,
     password: row[3] as string,
-    role: row[4] as string
+    avatar: row[4] as string | null,
+    role: row[5] as string
   }
 }
-
-export const getAllUsers = async (): Promise<User[]> => {
+type OmitUser = Omit<User,'password'|'role'>
+export const getAllUsers = async (): Promise<OmitUser[]> => {
   const db = getDB()
 
   if (!db) {
     return []
   }
 
-  const result = db.exec('SELECT id, username, email FROM users')
-  const users: User[] = []
+  const result = db.exec('SELECT id, username, email, avatar, provider, last_login_at, group_id FROM users')
+  const users: OmitUser[] = []
 
   if (result.length && result[0].values.length) {
     result[0].values.forEach((row: unknown[]) => {
@@ -135,8 +138,10 @@ export const getAllUsers = async (): Promise<User[]> => {
         id: row[0] as number,
         username: row[1] as string,
         email: row[2] as string,
-        password: '',
-        role: ''
+        avatar: row[3] as string | null,
+        provider: row[4] as string,
+        last_login_at: row[5] as string,
+        group_id: row[6] as number || 0
       })
     })
   }

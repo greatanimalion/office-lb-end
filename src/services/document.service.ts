@@ -4,13 +4,14 @@ import { type Document as _Document, DocumentVersion, OwnerType } from '../model
 import logger from '../utils/logger'
 
 type Document = Partial<_Document> & Partial<DocumentVersion>
-type DocumentVersionWithCreatedAt = Partial<DocumentVersion> & { created_at: string, version_number: number, filesize: number }
+type DocumentVersionWithCreatedAt = Partial<DocumentVersion> & { created_at: string, version_number: number, filesize: number, alter_by_username: string }
 export const getDocumentVersion = async (documentId: number): Promise<DocumentVersionWithCreatedAt[]> => {
   const db = getDB()
   if (!db) {
     return []
   }
-  const result = db.exec(`SELECT * FROM document_versions  WHERE document_id=${documentId}`)
+  const result = db.exec(`SELECT dv.id, dv.document_id, dv.fileSize, dv.v_number, dv.created_at, u.username as alter_by_username
+     FROM document_versions dv JOIN users u ON dv.alter_by = u.id WHERE dv.document_id=${documentId}`)
   const versions: DocumentVersionWithCreatedAt[] = []
   if (result.length && result[0].values.length) {
     try {
@@ -18,9 +19,10 @@ export const getDocumentVersion = async (documentId: number): Promise<DocumentVe
         versions.push({
           id: row[0] as number,
           document_id: row[1] as number,
-          filesize: row[3] as number,
-          version_number: row[4] as number,
-          created_at: row[6] as string,
+          filesize: row[2] as number,
+          version_number: row[3] as number,
+          created_at: row[4] as string,
+          alter_by_username: row[5] as string,
         })
       })
     } catch (error) {
@@ -31,15 +33,30 @@ export const getDocumentVersion = async (documentId: number): Promise<DocumentVe
   return versions
 }
 
-export const getAllDocuments = async (page: number, pageSize: number = 100, ownerId: number, owner_type: 'public' | 'user' | 'folder' | 'group') => {
+export const getMaxVersionNumber = async (documentId: number): Promise<number> => {
+  const db = getDB()
+  if (!db) {
+    return 0
+  }
+  const result = db.exec(`SELECT MAX(v_number) FROM document_versions WHERE document_id=${documentId}`)
+  if (result.length && result[0].values.length) {
+    return Number(result[0].values[0][0] as string) || 0
+  }
+  return 0
+}
+
+type OmitDocument=Omit<Document, 'owner_type'>
+export const getAllDocuments =  (page: number, pageSize: number = 100, ownerId: number, owner_type: OwnerType): {documents: OmitDocument[], total: number} => {
   const offset = (page - 1) * pageSize
   const db = getDB()
-  if (!db) { return [] }
+  if (!db) { return {documents: [], total: 0} }
   const result = db.exec(`SELECT 
     d.id, d.document_v_id, d.title, dv.fileSize, d.status, d.locked, d.locked_by, dv.created_at, d.updated_at, dv.v_number
     FROM documents d JOIN document_versions dv ON d.document_v_id = dv.id 
     WHERE d.owner_id=${ownerId} AND d.owner_type="${owner_type}" LIMIT ${pageSize} OFFSET ${offset}`)
-  const documents: Omit<Document, 'owner_type'>[] = []
+  const documents: OmitDocument[] = []
+  const total=db.exec(`SELECT COUNT(*) FROM documents d JOIN document_versions dv ON d.document_v_id = dv.id 
+    WHERE d.owner_id=${ownerId} AND d.owner_type="${owner_type}"`)
   if (result.length && result[0].values.length) {
     result[0].values.forEach((row: unknown[]) => {
       documents.push({
@@ -56,7 +73,7 @@ export const getAllDocuments = async (page: number, pageSize: number = 100, owne
       })
     })
   }
-  return documents
+  return {documents: documents, total: Number(total[0].values[0][0] as string) || 0}
 }
 
 export const getDocumentsByOwner = async (ownerId: number): Promise<Document[]> => {

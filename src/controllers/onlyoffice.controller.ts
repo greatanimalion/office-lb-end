@@ -32,7 +32,8 @@ export const getEditorConfigController = async (
       true,
       {
         id: id.toString(),
-        name: u.username
+        name: u.username!,
+        avatar: u.avatar!,
       },
       document.v_number!
     )

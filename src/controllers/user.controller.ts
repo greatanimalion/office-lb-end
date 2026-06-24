@@ -93,7 +93,6 @@ export const getUserByIdController = async (
 ): Promise<void> => {
   try {
     const userId = parseInt(req.params.id, 10)
-
     if (isNaN(userId)) {
       res.status(400).json({ message: '无效的用户ID' })
       return
@@ -105,11 +104,11 @@ export const getUserByIdController = async (
       res.status(404).json({ message: '用户不存在' })
       return
     }
-
     res.json({
       id: user.id,
       username: user.username,
       email: user.email,
+      avatar: user.avatar,
       role: user.role
     })
   } catch (error) {
