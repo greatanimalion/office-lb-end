@@ -27,11 +27,16 @@ const addColumnIfNotExists = (db: Database, tableName: string, columnName: strin
 const createAllTables = (db: Database): void => {
   db.run(`CREATE TABLE IF NOT EXISTS permissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    operator_type TEXT ,
+    operator_id INTEGER,
+    to_id INTEGER,
     target_id INTEGER,
-    share_type TEXT NOT NULL,
     permission TEXT,
-    created_at TEXT,
-    updated_at TEXT
+    start_time TEXT,
+    end_time TEXT,
+    password TEXT,
+    count INTEGER,
+    created_at TEXT
   )`)
 
   db.run(`CREATE TABLE IF NOT EXISTS users (
@@ -53,6 +58,7 @@ const createAllTables = (db: Database): void => {
     owner_id INTEGER NOT NULL,
     owner_type TEXT NOT NULL,
     title TEXT,
+    permission TEXT,
     locked INTEGER DEFAULT 0,
     locked_by INTEGER,
     status INTEGER DEFAULT 1,
@@ -154,6 +160,7 @@ const createAllTables = (db: Database): void => {
     filename TEXT NOT NULL,
     parent_folder_id INTEGER,
     group_id INTEGER NOT NULL,
+    permission TEXT,
     created_at DATETIME DEFAULT (datetime('now', 'localtime')),
     updated_at DATETIME DEFAULT (datetime('now', 'localtime')),
     FOREIGN KEY (parent_folder_id) REFERENCES folders(id),
@@ -170,14 +177,14 @@ export const initDB = async (): Promise<void> => {
   } else {
     db = new SQL.Database()
   }
+  //删除user_social_accounts表
+  // db.run(`DROP TABLE IF EXISTS permissions`)
   createAllTables(db)
 
   // addColumnIfNotExists(db, 'users', 'last_login_at', 'TEXT')
-  //删除user_social_accounts表
-  // db.run(`DROP TABLE IF EXISTS users`)
   // 修改某一行的字段名
   // db.run(`ALTER TABLE users RENAME COLUMN tenant_id TO target_id`)
-  // addColumnIfNotExists(db, 'documents', 'owner_type', 'TEXT DEFAULT "user"')
+  // addColumnIfNotExists(db, 'documents', 'permission', 'TEXT ')
   // addColumnIfNotExists(db, 'document_versions', 'filename', 'TEXT NOT NULL DEFAULT "未知"')
 
   saveDB()

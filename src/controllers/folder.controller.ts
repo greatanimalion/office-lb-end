@@ -27,21 +27,14 @@ export const createFolderController = async (
     const result = await createFolder({
       filename,
       parentFolderId,
-      groupId
+      groupId,
+      permission: permission.toString()
     })
 
-    if(result.success){
-      const re=await createPermission(permission,result.id!,shareType.FOLDER)
-      if(!re.success){
-        res.status(400).json({ error: re.message })
-        return
-      }
-    }
     if (!result.success) {
       res.status(400).json({ error: result.error })
       return
     }
-
     res.status(200).json({ id: result.id, filename, parentFolderId, groupId })
   } catch (error) {
     logger.error('Create folder error:', error)
@@ -88,26 +81,26 @@ export const getFolderListController = async (
     res.status(500).json({success: false, error: '获取文件夹详情失败' })
   }
 }
-
+// 更新文件夹名称与权限
 export const updateFolderController = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const folderId = parseInt(req.params.id, 10)
-    const { filename } = req.body
+    const { filename,permission } = req.body
 
     if (isNaN(folderId)) {
       res.status(400).json({ error: '无效的文件夹ID' })
       return
     }
 
-    if (!filename) {
-      res.status(400).json({ error: '文件夹名称不能为空' })
+    if (!filename || !permission) {
+      res.status(400).json({ error: '文件夹名称和权限字符串不能为空' }) 
       return
     }
 
-    const result = await updateFolderName(folderId, filename)
+    const result = await updateFolderName(folderId, filename,permission.toString())
 
     if (!result.success) {
       res.status(404).json({ error: result.error })
@@ -120,14 +113,13 @@ export const updateFolderController = async (
     res.status(500).json({ error: '更新文件夹失败' })
   }
 }
-
+// 删除文件夹
 export const deleteFolderController = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const folderId = parseInt(req.params.id, 10)
-
     if (isNaN(folderId)) {
       res.status(200).json({ success: false, error: '无效的文件夹ID' })
       return

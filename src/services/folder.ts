@@ -1,9 +1,11 @@
+import { Database } from 'sql.js'
 import { getDB, saveDB } from '../db'
 import {type Folder} from '../models/types'
 export interface CreateFolderOptions {
   filename: string
   parentFolderId?: number
-  groupId: number
+  groupId: number,  
+  permission?: string//空代表无权限
 }
 
 export interface FolderWithChildren extends Folder {
@@ -16,9 +18,8 @@ export const createFolder = async (options: CreateFolderOptions): Promise<{ succ
   if (!db) {
     return { success: false, error: '数据库未初始化' }
   }
-
   try {
-    const { filename, parentFolderId, groupId } = options
+    const { filename, parentFolderId, groupId, permission } = options
 
     if (parentFolderId) {
       const parentResult = db.exec(`SELECT id FROM folders WHERE id = ${parentFolderId} AND group_id = ${groupId}`)
@@ -27,12 +28,10 @@ export const createFolder = async (options: CreateFolderOptions): Promise<{ succ
       }
     }
 
-    const now = new Date().toISOString()
     db.run(
-      `INSERT INTO folders (filename, parent_folder_id, group_id, created_at, updated_at)
-       VALUES ("${filename}", ${parentFolderId || 'NULL'}, ${groupId}, "${now}", "${now}")`
+      `INSERT INTO folders (filename, parent_folder_id, group_id, permission, created_at, updated_at)
+       VALUES ("${filename}", ${parentFolderId || 'NULL'}, ${groupId}, "${permission || ''}", (datetime('now', 'localtime')), (datetime('now', 'localtime')))`
     )
-
     const lastIdResult = db.exec('SELECT last_insert_rowid()')
     const lastId = lastIdResult[0].values[0][0] as number
 
@@ -45,7 +44,7 @@ export const createFolder = async (options: CreateFolderOptions): Promise<{ succ
   }
 }
 //递归删除文件夹及其子文件夹
-const deleteFolderRecursive = (db: any, folderId: number): void => {
+const deleteFolderRecursive = (db: Database, folderId: number): void => {
   const childrenResult = db.exec(`SELECT id FROM folders WHERE parent_folder_id = ${folderId}`)
   if (childrenResult.length > 0 && childrenResult[0].values.length > 0) {
     childrenResult[0].values.forEach((row: unknown[]) => {
@@ -61,7 +60,6 @@ export const deleteFolder = async (folderId: number): Promise<{ success: boolean
   if (!db) {
     return { success: false, error: '数据库未初始化' }
   }
-
   try {
     deleteFolderRecursive(db, folderId)
     saveDB()
@@ -71,7 +69,7 @@ export const deleteFolder = async (folderId: number): Promise<{ success: boolean
   }
 }
 
-export const updateFolderName = async (folderId: number, newName: string): Promise<{ success: boolean; error?: string }> => {
+export const updateFolderName = async (folderId: number, newName: string, newPermission: string): Promise<{ success: boolean; error?: string }> => {
   const db = getDB()
   if (!db) {
     return { success: false, error: '数据库未初始化' }
@@ -83,7 +81,7 @@ export const updateFolderName = async (folderId: number, newName: string): Promi
       return { success: false, error: '文件夹不存在' }
     }
 
-    db.run(`UPDATE folders SET filename = "${newName}", updated_at = CURRENT_TIMESTAMP WHERE id = ${folderId}`)
+    db.run(`UPDATE folders SET filename = "${newName}", permission = "${newPermission}", updated_at = CURRENT_TIMESTAMP WHERE id = ${folderId}`)
 
     saveDB()
 
@@ -105,11 +103,11 @@ export const getFoldersList = async (groupId?: number, parentFolderId?: number):
   if (!groupId && !parentFolderId) {
     return []
   }else if (!groupId && !!parentFolderId) {
-    query = 'SELECT * FROM folders WHERE parent_folder_id = ' + parentFolderId+' ORDER BY created_at ASC'
+    query = 'SELECT id,filename,parent_folder_id,group_id,permission,created_at,updated_at FROM folders WHERE parent_folder_id = ' + parentFolderId+' ORDER BY created_at ASC'
   }else if( !!groupId&&!parentFolderId){
-      query='SELECT * FROM folders WHERE group_id = ' + groupId +' AND parent_folder_id IS NULL ORDER BY created_at ASC'
+      query='SELECT id,filename,parent_folder_id,group_id,permission,created_at,updated_at FROM folders WHERE group_id = ' + groupId +' AND parent_folder_id IS NULL ORDER BY created_at ASC'
   }else  {
-    query = 'SELECT * FROM folders WHERE group_id = ' + groupId +' AND parent_folder_id='+parentFolderId+' ORDER BY created_at ASC'
+    query = 'SELECT id,filename,parent_folder_id,group_id,permission,created_at,updated_at FROM folders WHERE group_id = ' + groupId +' AND parent_folder_id='+parentFolderId+' ORDER BY created_at ASC'
   }
 
   const result = db.exec(query)
@@ -122,8 +120,9 @@ export const getFoldersList = async (groupId?: number, parentFolderId?: number):
         filename: row[1] as string,
         parentFolderId: row[2] ? (row[2] as number) : undefined,
         groupId: row[3] as number,
-        createdAt: new Date(row[4] as string),
-        updatedAt: new Date(row[5] as string)
+        permission: row[4] as string,
+        createdAt: new Date(row[5] as string),
+        updatedAt: new Date(row[6] as string)
       })
     })
   }

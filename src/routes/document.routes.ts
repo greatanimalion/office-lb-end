@@ -6,7 +6,6 @@ import {
   createDocumentController,
   updateDocumentController,
   deleteDocumentController,
-  shareDocumentController,
   unshareDocumentController,
   downloadDocumentController,
   trackDocumentController,
@@ -17,6 +16,7 @@ import {
   viewDocumentByIdController,
   getAllDocumentsController,
   uploadDocumentController,
+  deleteDocumentVersionController,
 } from '../controllers/document.controller'
 import {
   initUploadController,
@@ -48,6 +48,7 @@ router.put('/:id', updateDocumentController as RequestHandler)
 // router.post('/:id/track', trackDocumentController as RequestHandler)
 router.get('/all', getAllDocumentsController as RequestHandler)
 router.get('/:id/versions', getDocumentVersionsController as RequestHandler)
+router.delete('/:id/version', deleteDocumentVersionController as RequestHandler)
 router.post('/revert', revertDocumentVersionController as RequestHandler)
 // router.post('/:id/lock', lockDocumentController as any)
 // router.post('/:id/unlock', unlockDocumentController as any)

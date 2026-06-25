@@ -5,6 +5,7 @@ import logger from '../utils/logger'
 
 type Document = Partial<_Document> & Partial<DocumentVersion>
 type DocumentVersionWithCreatedAt = Partial<DocumentVersion> & { created_at: string, version_number: number, filesize: number, alter_by_username: string }
+// 获取文档版本列表
 export const getDocumentVersion = async (documentId: number): Promise<DocumentVersionWithCreatedAt[]> => {
   const db = getDB()
   if (!db) {
@@ -32,7 +33,7 @@ export const getDocumentVersion = async (documentId: number): Promise<DocumentVe
   }
   return versions
 }
-
+// 获取文档最大版本号
 export const getMaxVersionNumber = async (documentId: number): Promise<number> => {
   const db = getDB()
   if (!db) {
@@ -46,17 +47,29 @@ export const getMaxVersionNumber = async (documentId: number): Promise<number> =
 }
 
 type OmitDocument=Omit<Document, 'owner_type'>
-export const getAllDocuments =  (page: number, pageSize: number = 100, ownerId: number, owner_type: OwnerType): {documents: OmitDocument[], total: number} => {
+// 获取所有文档
+export const getAllDocuments =  (page: number, pageSize: number = 100, ownerId: number, owner_type: OwnerType, filter?: string): {documents: OmitDocument[], total: number} => {
   const offset = (page - 1) * pageSize
   const db = getDB()
   if (!db) { return {documents: [], total: 0} }
-  const result = db.exec(`SELECT 
+  let result
+  let total
+  if(filter){
+    result = db.exec(`SELECT 
+    d.id, d.document_v_id, d.title, dv.fileSize, d.status, d.locked, d.locked_by, dv.created_at, d.updated_at, dv.v_number
+    FROM documents d JOIN document_versions dv ON d.document_v_id = dv.id 
+    WHERE d.owner_id=${ownerId} AND d.owner_type="${owner_type}" AND d.title LIKE '%${filter}%' LIMIT ${pageSize} OFFSET ${offset}`)
+    total = db.exec(`SELECT COUNT(*) FROM documents d JOIN document_versions dv ON d.document_v_id = dv.id 
+    WHERE d.owner_id=${ownerId} AND d.owner_type="${owner_type}" AND d.title LIKE '%${filter}%'`)
+  }else {
+    result = db.exec(`SELECT 
     d.id, d.document_v_id, d.title, dv.fileSize, d.status, d.locked, d.locked_by, dv.created_at, d.updated_at, dv.v_number
     FROM documents d JOIN document_versions dv ON d.document_v_id = dv.id 
     WHERE d.owner_id=${ownerId} AND d.owner_type="${owner_type}" LIMIT ${pageSize} OFFSET ${offset}`)
-  const documents: OmitDocument[] = []
-  const total=db.exec(`SELECT COUNT(*) FROM documents d JOIN document_versions dv ON d.document_v_id = dv.id 
+    total = db.exec(`SELECT COUNT(*) FROM documents d JOIN document_versions dv ON d.document_v_id = dv.id 
     WHERE d.owner_id=${ownerId} AND d.owner_type="${owner_type}"`)
+  }
+  const documents: OmitDocument[] = []
   if (result.length && result[0].values.length) {
     result[0].values.forEach((row: unknown[]) => {
       documents.push({
@@ -75,7 +88,7 @@ export const getAllDocuments =  (page: number, pageSize: number = 100, ownerId: 
   }
   return {documents: documents, total: Number(total[0].values[0][0] as string) || 0}
 }
-
+// 获取用户所有文档
 export const getDocumentsByOwner = async (ownerId: number): Promise<Document[]> => {
   const db = getDB()
 
@@ -110,7 +123,7 @@ export const getDocumentsByOwner = async (ownerId: number): Promise<Document[]> 
   }
   return documents
 }
-
+// 获取用户所有分享文档
 export const getSharedDocuments = async (userId: number): Promise<Document[]> => {
   const db = getDB()
 
@@ -147,7 +160,7 @@ export const getSharedDocuments = async (userId: number): Promise<Document[]> =>
 
   return documents
 }
-
+// 获取文档详情
 export const getDocumentById = async (id: number): Promise<Document | null> => {
   const db = getDB()
   if (!db) {
@@ -177,6 +190,7 @@ export const getDocumentById = async (id: number): Promise<Document | null> => {
 
   }
 }
+// 创建文档
 export const createDocument = async (
   ownerId: number,
   owner_type: OwnerType,
@@ -194,6 +208,7 @@ export const createDocument = async (
   saveDB()
   return lastId
 }
+// 关联文档版本
 export const DocumentRelateDV = (d_id: number, d_v_id: number) => {
   const db = getDB()
   if (!db) {
@@ -202,6 +217,7 @@ export const DocumentRelateDV = (d_id: number, d_v_id: number) => {
   db.run(`UPDATE documents SET document_v_id = ${d_v_id} WHERE id = ${d_id}`)
   saveDB()
 }
+// 创建文档版本
 export const createDocumentVersion = async (userId: number, documentId: number, filepath: string,
   filesize: number = 0, V: number = 1,
 ): Promise<number> => {
@@ -219,6 +235,16 @@ export const createDocumentVersion = async (userId: number, documentId: number, 
   db.run(`INSERT INTO audit_logs (user_id, document_id, action) VALUES (${userId}, ${documentId}, "创建版本 ${V}")`)
   saveDB()
   return lastId
+}
+// 更新文档名称与权限
+export const updataDocuemnt=(dId:number,title:string,permission:string)=>{
+  const db = getDB()
+  if (!db) {
+    return false
+  }
+  db.run(`UPDATE documents SET title="${title}",permission="${permission}" WHERE id = ${dId}`)
+  saveDB()
+  return true
 }
 
 export const restoreDocumentVersion = async (documentId: number, versionNumber: number, userId: number): Promise<boolean> => {
@@ -350,11 +376,7 @@ export const deleteDocument = async (id: number, userId: number): Promise<boolea
   }
 
   const versions = await getDocumentVersion(id)
-  // versions.forEach(version => {
-  //   if (fs.existsSync(version.filepath)) {
-  //     fs.unlinkSync(version.filepath)
-  //   }
-  // })
+
 
   db.run(`DELETE FROM document_versions WHERE document_id = ${id}`)
   db.run(`DELETE FROM document_shares WHERE document_id = ${id}`)
@@ -362,6 +384,20 @@ export const deleteDocument = async (id: number, userId: number): Promise<boolea
   db.run(`INSERT INTO audit_logs (user_id, document_id, action) VALUES (${userId}, ${id}, "删除文档")`)
   saveDB()
 
+  return true
+}
+// 删除文档版本
+export const deleteDVserion=(dvId:number)=>{
+  const db = getDB()
+  if (!db) {
+    return false
+  }
+  try{
+    db.run(`DELETE FROM document_versions WHERE id = ${dvId}`)
+  }catch(err){
+    return false
+  }
+  saveDB()
   return true
 }
 

@@ -120,7 +120,7 @@ export const generateEditorConfig = (
   documentId: number,
   documentTitle: string,
   canEdit: boolean = true,
-  user: { id: string, name: string,avatar: string },
+  user: { id: string, name: string, avatar: string },
   version: number,
   asyncEdit: boolean = true
 ): OnlyOfficeConfig => {
@@ -137,11 +137,7 @@ export const generateEditorConfig = (
         name: user.name,
         image: user.avatar,
       },
-      customization: {
-        waterMark: {
-          value: user.name,
-        },
-      }
+  
     },
     permissions: {
       edit: canEdit,
@@ -163,7 +159,7 @@ export const generateEditorConfig = (
 
 export const handleCallback = async (body: any): Promise<void> => {
   console.log('OnlyOffice callback received:', body)
-  const { status, key, users, url,filetype } = body
+  const { status, key, users, url, filetype } = body
   switch (status) {
     case 1:
       console.log(`Document ${key} is being edited by user ${users[0]}`)
@@ -178,8 +174,8 @@ export const handleCallback = async (body: any): Promise<void> => {
       }
       //获取最大版本号
       const maxVersion = await getMaxVersionNumber(id)
-      const filePath = await downloadFile(url, `${new Date().getTime()}_v_${id}.`+filetype)
-      const vId = await createDocumentVersion(Number(users[0]), id, filePath.filePath, filePath.size,maxVersion+1)
+      const filePath = await downloadFile(url, `${new Date().getTime()}_v_${id}.` + filetype)
+      const vId = await createDocumentVersion(Number(users[0]), id, filePath.filePath, filePath.size, maxVersion + 1)
       DocumentRelateDV(id, vId)//更新节点的版本
       break
     case 3:

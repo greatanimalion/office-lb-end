@@ -16,7 +16,8 @@ import {
   unlockDocument,
   getAllDocuments,
   DocumentRelateDV,
-  createDocumentVersion
+  createDocumentVersion,
+  deleteDVserion
 } from '../services/document.service.js'
 import logger from '../utils/logger.js'
 import { type OwnerType } from '../models/document.js'
@@ -40,7 +41,7 @@ export const viewDocumentByIdController = async (req: Request, res: Response) =>
     res.status(500).json({ error: '获取文档信息失败' })
   }
 }
-
+// 上传文档
 export const uploadDocumentController = async (req: Request, res: Response) => {
   try {
     let { documentId, targetId, owner_type } = req.body
@@ -84,13 +85,14 @@ export const uploadDocumentController = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: '上传文档到分组失败' })
   }
 }
-
+// 获取所有文档
 export const getAllDocumentsController = async (
   req: Request, res: Response) => {
   const page = parseInt(req.query.page as string, 10) || 1
   const pageSize = parseInt(req.query.pageSize as string, 10) || 100
   let ownerId = parseInt(req.query.owner_id as string, 10)
   const owner_type = req.query.owner_type as OwnerType
+  const filter = req.query.filter as string
   ownerId = owner_type == 'public' ? 0 : ownerId
   if (!ownerId || !owner_type) {
     if (owner_type == 'public') {
@@ -102,14 +104,14 @@ export const getAllDocumentsController = async (
     }
   }
   try {
-    const documents =  getAllDocuments(page, pageSize, ownerId, owner_type)
+    const documents =  getAllDocuments(page, pageSize, ownerId, owner_type,filter)
     res.json({ success: true, data: documents })
   } catch (error) {
     logger.error('Get all documents error:', error)
     res.status(500).json({ success: false, message: '获取所有文档列表失败' })
   }
 }
-
+// 获取共享文档
 export const getSharedDocumentsController = async (
   req: Request,
   res: Response
@@ -123,7 +125,7 @@ export const getSharedDocumentsController = async (
     res.status(500).json({ error: '获取共享文档列表失败' })
   }
 }
-
+// 获取文档
 export const getDocumentController = async (
   req: Request,
   res: Response
@@ -163,7 +165,7 @@ export const getDocumentController = async (
     res.status(500).json({ error: '获取文档信息失败' })
   }
 }
-
+// 创建文档
 export const createDocumentController = async (
   req: Request,
   res: Response
@@ -191,7 +193,7 @@ export const createDocumentController = async (
     res.status(500).json({ error: '创建文档失败' })
   }
 }
-
+// 更新文档
 export const updateDocumentController = async (
   req: Request,
   res: Response
@@ -219,7 +221,7 @@ export const updateDocumentController = async (
     res.status(500).json({ error: '更新文档失败' })
   }
 }
-
+// 删除文档
 export const deleteDocumentController = async (
   req: Request,
   res: Response
@@ -246,35 +248,32 @@ export const deleteDocumentController = async (
     res.status(500).json({ error: '删除文档失败' })
   }
 }
-
-export const shareDocumentController = async (
+// 删除文档版本
+export const deleteDocumentVersionController = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    const documentId = parseInt(req.params.id, 10)
-    const { userId, permission } = req.body
-    const currentUserId = getUserId(req)
+    const dvId = parseInt(req.params.id, 10)
 
-    if (isNaN(documentId)) {
-      res.status(400).json({ error: '无效的文档ID' })
+    if (isNaN(dvId)) {
+      res.status(200).json({ success: false, error: '无效的文档版本ID' })
       return
     }
-
-    const success = await shareDocument(documentId, userId, permission, currentUserId)
+    const success = deleteDVserion(dvId)
 
     if (!success) {
-      res.status(403).json({ error: '无权分享此文档' })
+      res.status(200).json({ success: false, error: '无权删除此文档版本' })
       return
     }
 
     res.json({ success: true })
   } catch (error) {
-    logger.error('Share document error:', error)
-    res.status(500).json({ error: '分享文档失败' })
+    logger.error('Delete document version error:', error)
+    res.status(500).json({ error: '删除文档版本失败' })
   }
 }
-
+// 取消分享文档
 export const unshareDocumentController = async (
   req: Request,
   res: Response
@@ -302,7 +301,7 @@ export const unshareDocumentController = async (
     res.status(500).json({ error: '取消分享失败' })
   }
 }
-
+// 下载文档
 export const downloadDocumentController = async (
   req: Request,
   res: Response
@@ -330,7 +329,7 @@ export const downloadDocumentController = async (
     res.status(500).json({ error: '下载文档失败' })
   }
 }
-
+// 更新文档跟踪
 export const trackDocumentController = async (
   req: Request,
   res: Response
@@ -352,7 +351,7 @@ export const trackDocumentController = async (
     res.status(500).json({ error: '更新文档跟踪失败' })
   }
 }
-
+// 获取文档版本
 export const getDocumentVersionsController = async (
   req: Request,
   res: Response
@@ -377,7 +376,7 @@ export const getDocumentVersionsController = async (
     res.status(500).json({ success: false, message: '获取文档版本失败' })
   }
 }
-
+// 恢复文档版本
 export const revertDocumentVersionController = async (
   req: Request,
   res: Response
@@ -403,7 +402,7 @@ export const revertDocumentVersionController = async (
     res.status(500).json({ success: false, message: '恢复文档版本失败' })
   }
 }
-
+// 锁定文档
 export const lockDocumentController = async (
   req: Request,
   res: Response
@@ -430,7 +429,7 @@ export const lockDocumentController = async (
     res.status(500).json({ error: '锁定文档失败' })
   }
 }
-
+// 解锁文档
 export const unlockDocumentController = async (
   req: Request,
   res: Response
