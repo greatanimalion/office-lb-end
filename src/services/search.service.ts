@@ -1,5 +1,4 @@
 import fs from 'fs'
-import path from 'path'
 import { getDB } from '../db'
 import { documentsIndex } from '../config/meilisearch'
 import logger from '../utils/logger'
@@ -55,7 +54,7 @@ export const initMeiliSearch = async (): Promise<void> => {
 
 export const addDocumentToIndex = async (document: DocumentIndex): Promise<void> => {
   if (!meilisearchAvailable) return
-  
+
   try {
     await documentsIndex.addDocuments([document])
   } catch (error) {
@@ -65,7 +64,7 @@ export const addDocumentToIndex = async (document: DocumentIndex): Promise<void>
 
 export const updateDocumentInIndex = async (document: DocumentIndex): Promise<void> => {
   if (!meilisearchAvailable) return
-  
+
   try {
     await documentsIndex.updateDocuments([document])
   } catch (error) {
@@ -75,7 +74,7 @@ export const updateDocumentInIndex = async (document: DocumentIndex): Promise<vo
 
 export const deleteDocumentFromIndex = async (documentId: number): Promise<void> => {
   if (!meilisearchAvailable) return
-  
+
   try {
     await documentsIndex.deleteDocument(documentId.toString())
   } catch (error) {
@@ -87,25 +86,25 @@ export const searchDocuments = async (options: SearchOptions): Promise<SearchRes
   if (meilisearchAvailable && options.query) {
     try {
       const filters: string[] = []
-      
+
       if (options.author) {
         filters.push(`owner_id = ${options.author}`)
       }
-      
+
       if (options.startDate) {
         filters.push(`created_at >= "${options.startDate}"`)
       }
-      
+
       if (options.endDate) {
         filters.push(`created_at <= "${options.endDate}"`)
       }
-      
+
       const result = await documentsIndex.search(options.query, {
         filter: filters.length > 0 ? filters.join(' AND ') : undefined,
         limit: options.limit || 20,
         offset: options.offset || 0
       })
-      
+
       return result.hits.map((hit: any) => ({
         id: parseInt(hit.id),
         title: hit.title,
@@ -120,78 +119,46 @@ export const searchDocuments = async (options: SearchOptions): Promise<SearchRes
       meilisearchAvailable = false
     }
   }
-  
+
   return searchDocumentsDB(options)
 }
 
 const searchDocumentsDB = async (options: SearchOptions): Promise<SearchResult[]> => {
-  const db = getDB()
-  
-  if (!db) {
-    return []
-  }
+  const prisma = getDB()
 
-  let sql = `
-    SELECT d.id, d.title, d.filename, d.owner_id, d.created_at, d.updated_at
-    FROM documents d
-    WHERE d.status != 'deleted'
-  `
-
-  const conditions: string[] = []
-
-  if (options.query) {
-    const escapedQuery = options.query.replace(/"/g, '\\"')
-    conditions.push(`(d.title LIKE "%${escapedQuery}%" OR d.filename LIKE "%${escapedQuery}%")`)
-  }
-
-  if (options.author) {
-    conditions.push(`d.owner_id = ${options.author}`)
+  const where: Record<string, unknown> = {
+    status: { not: 0 },
+    ...(options.query ? {
+      title: { contains: options.query },
+    } : {}),
+    ...(options.author ? {
+      ownerId: options.author,
+    } : {}),
   }
 
   if (options.startDate) {
-    conditions.push(`d.created_at >= "${options.startDate}"`)
+    where.createdAt = { ...(where.createdAt as Record<string, unknown> || {}), gte: new Date(options.startDate) }
   }
 
   if (options.endDate) {
-    conditions.push(`d.created_at <= "${options.endDate}"`)
+    where.createdAt = { ...(where.createdAt as Record<string, unknown> || {}), lte: new Date(options.endDate) }
   }
 
-  if (conditions.length > 0) {
-    sql += ' AND ' + conditions.join(' AND ')
-  }
+  const docs = await prisma.document.findMany({
+    where,
+    orderBy: { updatedAt: 'desc' },
+    take: options.limit || 20,
+    skip: options.offset || 0,
+  })
 
-  sql += ` ORDER BY d.updated_at DESC`
-
-  if (options.limit) {
-    sql += ` LIMIT ${options.limit}`
-  }
-
-  if (options.offset) {
-    sql += ` OFFSET ${options.offset}`
-  }
-
-  try {
-    const result = db.exec(sql)
-    const documents: SearchResult[] = []
-
-    if (result.length && result[0].values.length) {
-      result[0].values.forEach((row: unknown[]) => {
-        documents.push({
-          id: row[0] as number,
-          title: row[1] as string,
-          filename: row[2] as string,
-          owner_id: row[3] as number,
-          created_at: row[4] as string,
-          updated_at: row[5] as string
-        })
-      })
-    }
-
-    return documents
-  } catch (error) {
-    logger.error('Search documents error:', error)
-    return []
-  }
+  return docs.map(d => ({
+    id: d.id,
+    title: d.title || '',
+    filename: d.title || '',
+    owner_id: d.ownerId,
+    created_at: d.updatedAt.toISOString(),
+    updated_at: d.updatedAt.toISOString(),
+  }))
 }
 
 export const extractDocxText = (filePath: string): string => {
@@ -201,7 +168,7 @@ export const extractDocxText = (filePath: string): string => {
     }
 
     const content = fs.readFileSync(filePath, 'utf-8')
-    
+
     if (content.includes('<?xml')) {
       const textMatch = content.match(/<w:t[^>]*>([^<]*)<\/w:t>/g)
       if (textMatch) {
@@ -223,7 +190,7 @@ export const searchByContent = async (query: string, userId: number): Promise<Se
         filter: `owner_id = ${userId}`,
         limit: 20
       })
-      
+
       return result.hits.map((hit: any) => ({
         id: parseInt(hit.id),
         title: hit.title,
@@ -239,38 +206,34 @@ export const searchByContent = async (query: string, userId: number): Promise<Se
     }
   }
 
-  const db = getDB()
-  
-  if (!db) {
-    return []
-  }
+  const prisma = getDB()
 
-  const result = db.exec(`
-    SELECT DISTINCT d.id, d.title, d.filename, d.filepath, d.owner_id, d.created_at, d.updated_at
-    FROM documents d
-    LEFT JOIN document_shares ds ON d.id = ds.document_id AND ds.user_id = ${userId}
-    WHERE d.status != 'deleted' AND (d.owner_id = ${userId} OR ds.id IS NOT NULL)
-  `)
+  const docs = await prisma.document.findMany({
+    where: {
+      ownerId: userId,
+      status: { not: 0 },
+    },
+    include: { versions: { orderBy: { vNumber: 'desc' }, take: 1 } },
+  })
 
   const results: SearchResult[] = []
 
-  if (result.length && result[0].values.length) {
-    result[0].values.forEach((row: unknown[]) => {
-      const filepath = row[3] as string
+  for (const doc of docs) {
+    const filepath = doc.versions[0]?.filepath
+    if (filepath) {
       const content = extractDocxText(filepath)
-      
       if (content.toLowerCase().includes(query.toLowerCase())) {
         results.push({
-          id: row[0] as number,
-          title: row[1] as string,
-          filename: row[2] as string,
-          owner_id: row[4] as number,
-          created_at: row[5] as string,
-          updated_at: row[6] as string,
-          content: content.substring(0, 200)
+          id: doc.id,
+          title: doc.title || '',
+          filename: doc.title || '',
+          owner_id: doc.ownerId,
+          created_at: doc.updatedAt.toISOString(),
+          updated_at: doc.updatedAt.toISOString(),
+          content: content.substring(0, 200),
         })
       }
-    })
+    }
   }
 
   return results
@@ -283,7 +246,7 @@ export const getDocumentsByTag = async (tag: string, userId: number): Promise<Se
         filter: `owner_id = ${userId}`,
         limit: 20
       })
-      
+
       return result.hits.map((hit: any) => ({
         id: parseInt(hit.id),
         title: hit.title,
@@ -297,60 +260,49 @@ export const getDocumentsByTag = async (tag: string, userId: number): Promise<Se
     }
   }
 
-  const db = getDB()
-  
-  if (!db) {
-    return []
-  }
+  const prisma = getDB()
 
-  const result = db.exec(`
-    SELECT DISTINCT d.id, d.title, d.filename, d.owner_id, d.created_at, d.updated_at
-    FROM documents d
-    LEFT JOIN document_shares ds ON d.id = ds.document_id AND ds.user_id = ${userId}
-    WHERE d.status != 'deleted' AND (d.owner_id = ${userId} OR ds.id IS NOT NULL) AND d.title LIKE "%${tag}%"
-    ORDER BY d.updated_at DESC
-  `)
+  const docs = await prisma.document.findMany({
+    where: {
+      ownerId: userId,
+      status: { not: 0 },
+      title: { contains: tag },
+    },
+    orderBy: { updatedAt: 'desc' },
+  })
 
-  const documents: SearchResult[] = []
-
-  if (result.length && result[0].values.length) {
-    result[0].values.forEach((row: unknown[]) => {
-      documents.push({
-        id: row[0] as number,
-        title: row[1] as string,
-        filename: row[2] as string,
-        owner_id: row[3] as number,
-        created_at: row[4] as string,
-        updated_at: row[5] as string
-      })
-    })
-  }
-
-  return documents
+  return docs.map(d => ({
+    id: d.id,
+    title: d.title || '',
+    filename: d.title || '',
+    owner_id: d.ownerId,
+    created_at: d.updatedAt.toISOString(),
+    updated_at: d.updatedAt.toISOString(),
+  }))
 }
 
 export const suggestTags = async (query: string): Promise<string[]> => {
-  const db = getDB()
-  
-  if (!db) {
-    return []
-  }
+  const prisma = getDB()
 
-  const result = db.exec(`
-    SELECT DISTINCT SUBSTR(d.title, INSTR(d.title, '['), INSTR(d.title, ']') - INSTR(d.title, '[') + 1) as tag
-    FROM documents d
-    WHERE d.title LIKE "%[%" AND d.title LIKE "%]%" AND d.title LIKE "%${query}%"
-  `)
+  const docs = await prisma.document.findMany({
+    where: {
+      title: {
+        contains: query,
+      },
+    },
+    select: { title: true },
+    take: 50,
+  })
 
   const tags: string[] = []
 
-  if (result.length && result[0].values.length) {
-    result[0].values.forEach((row: unknown[]) => {
-      const tag = row[0] as string
-      if (tag) {
-        tags.push(tag.replace(/\[|\]/g, ''))
+  for (const doc of docs) {
+    if (doc.title) {
+      const match = doc.title.match(/\[([^\]]+)\]/)
+      if (match) {
+        tags.push(match[1])
       }
-    })
+    }
   }
 
   return [...new Set(tags)]

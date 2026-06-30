@@ -11,7 +11,7 @@ export interface AuditLog {
   details?: string
   ipAddress?: string
   userAgent?: string
-  createdAt: string
+  createdAt: Date
 }
 
 export const logAction = async (
@@ -21,17 +21,19 @@ export const logAction = async (
   entityId?: number,
   details?: string
 ): Promise<void> => {
-  const db = getDB()
-
-  if (!db) {
-    return
-  }
+  const prisma = getDB()
 
   const documentId = entityType === AuditEntityType.DOCUMENT ? entityId : null
 
-  db.run(
-    `INSERT INTO audit_logs (user_id, document_id, action, entity_type, details) VALUES (${userId}, ${documentId || 'NULL'}, "${action}", "${entityType}", "${details || ''}")`
-  )
+  await prisma.auditLog.create({
+    data: {
+      userId,
+      documentId: documentId || undefined,
+      action,
+      entityType,
+      details: details || undefined,
+    },
+  })
 }
 
 export const getAuditLogs = async (
@@ -45,56 +47,24 @@ export const getAuditLogs = async (
     offset?: number
   } = {}
 ): Promise<AuditLog[]> => {
-  const db = getDB()
-
-  if (!db) {
-    return []
-  }
+  const prisma = getDB()
 
   const { userId, documentId, action, startDate, endDate, limit = 100, offset = 0 } = options
 
-  let query = 'SELECT * FROM audit_logs WHERE 1=1'
+  const where: Record<string, unknown> = {}
 
-  if (userId) {
-    query += ` AND user_id = ${userId}`
-  }
+  if (userId) where.userId = userId
+  if (documentId) where.documentId = documentId
+  if (action) where.action = action
+  if (startDate) where.createdAt = { ...(where.createdAt as Record<string, unknown> || {}), gte: new Date(startDate) }
+  if (endDate) where.createdAt = { ...(where.createdAt as Record<string, unknown> || {}), lte: new Date(endDate) }
 
-  if (documentId) {
-    query += ` AND document_id = ${documentId}`
-  }
+  const logs = await prisma.auditLog.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+    skip: offset,
+  })
 
-  if (action) {
-    query += ` AND action = "${action}"`
-  }
-
-  if (startDate) {
-    query += ` AND created_at >= "${startDate}"`
-  }
-
-  if (endDate) {
-    query += ` AND created_at <= "${endDate}"`
-  }
-
-  query += ` ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
-
-  const result = db.exec(query)
-  const logs: AuditLog[] = []
-
-  if (result.length && result[0].values.length) {
-    result[0].values.forEach((row: unknown[]) => {
-      logs.push({
-        id: row[0] as number,
-        userId: row[1] as number,
-        documentId: row[2] as number | undefined,
-        action: row[3] as AuditAction,
-        entityType: row[4] as AuditEntityType,
-        details: row[5] as string | undefined,
-        ipAddress: row[6] as string | undefined,
-        userAgent: row[7] as string | undefined,
-        createdAt: row[8] as string
-      })
-    })
-  }
-
-  return logs
+  return logs as unknown as AuditLog[]
 }

@@ -1,6 +1,6 @@
 import passport from 'passport'
 import { Strategy as GitLabStrategy } from 'passport-gitlab2'
-import { Strategy as OAuth2Strategy } from 'passport-oauth2'
+// import { Strategy as OAuth2Strategy } from 'passport-oauth2'
 import config from './auth.js'
 import {createTampAccountOrUpdate, User } from '../services/user.service'
 import logger from '../utils/logger.js'

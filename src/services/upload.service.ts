@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { getDB, saveDB } from '../db'
+import { getDB } from '../db'
 import { getStoragePath } from '../utils/file'
 import logger from '../utils/logger'
 
@@ -38,23 +38,25 @@ export const initUploadSession = async (
   totalChunks: number,
   hash?: string
 ): Promise<string> => {
-  const db = getDB()
-  
-  if (!db) {
-    throw new Error('数据库未初始化')
-  }
+  const prisma = getDB()
+
   const fileId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-  db.run(`
-    INSERT INTO upload_sessions (file_id, filename, filesize, total_chunks, uploaded_chunks, hash, created_at, updated_at)
-    VALUES ("${fileId}", "${filename}", ${filesize}, ${totalChunks}, "[]", "${hash || ''}", CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-  `)
-  
-  saveDB()
-  
+
+  await prisma.uploadSession.create({
+    data: {
+      fileId,
+      filename,
+      filesize,
+      totalChunks,
+      uploadedChunks: '[]',
+      hash: hash || null,
+    },
+  })
+
   const tempDir = getStoragePath('temp')
   const chunkDir = path.join(tempDir, fileId)
   fs.mkdirSync(chunkDir, { recursive: true })
-  
+
   return fileId
 }
 
@@ -63,27 +65,29 @@ export const uploadChunk = async (
   chunkIndex: number,
   chunkData: Buffer
 ): Promise<UploadResult> => {
-  const db = getDB()
-  if (!db) {throw new Error('数据库未初始化') }
-  const result = db.exec(`SELECT * FROM upload_sessions WHERE file_id = "${fileId}"`)
-  if (!result.length || !result[0].values.length) {
+  const prisma = getDB()
+
+  const session = await prisma.uploadSession.findUnique({ where: { fileId } })
+  if (!session) {
     return { success: false, uploadedChunks: [], isComplete: false, fileId, message: '上传会话不存在' }
   }
-  const row = result[0].values[0]
-  const totalChunks = row[3] as number
-  const uploadedChunks = JSON.parse(row[4] as string || '[]') as number[]
+
+  const totalChunks = session.totalChunks
+  const uploadedChunks = JSON.parse(session.uploadedChunks || '[]') as number[]
+
   if (chunkIndex < 0 || chunkIndex >= totalChunks) {
     return { success: false, uploadedChunks, isComplete: false, fileId, message: '无效的分片索引' }
   }
+
   if (uploadedChunks.includes(chunkIndex)) {
     return { success: true, uploadedChunks, isComplete: uploadedChunks.length === totalChunks, fileId }
   }
-  
+
   const tempDir = getStoragePath('temp')
   const chunkDir = path.join(tempDir, fileId)
   const chunkPath = path.join(chunkDir, `chunk_${chunkIndex}`)
+
   try {
-    
     fs.writeFileSync(chunkPath, chunkData)
   } catch (error) {
     logger.error('Failed to write chunk:', error)
@@ -93,16 +97,15 @@ export const uploadChunk = async (
   uploadedChunks.push(chunkIndex)
   uploadedChunks.sort((a, b) => a - b)
 
-  const chunksJson = JSON.stringify(uploadedChunks)
-  db.run(
-    'UPDATE upload_sessions SET uploaded_chunks = ?, updated_at = CURRENT_TIMESTAMP WHERE file_id = ?',
-    [chunksJson, fileId]
-  )
-
-  saveDB()
+  await prisma.uploadSession.update({
+    where: { fileId },
+    data: {
+      uploadedChunks: JSON.stringify(uploadedChunks),
+    },
+  })
 
   const isComplete = uploadedChunks.length === totalChunks
-  
+
   return { success: true, uploadedChunks, isComplete, fileId }
 }
 
@@ -113,7 +116,7 @@ export const verifyChunkIntegrity = async (
 ): Promise<boolean> => {
   const tempDir = getStoragePath('temp')
   const chunkPath = path.join(tempDir, fileId, `chunk_${chunkIndex}`)
-  
+
   if (!fs.existsSync(chunkPath)) {
     return false
   }
@@ -121,25 +124,20 @@ export const verifyChunkIntegrity = async (
   const chunkData = fs.readFileSync(chunkPath)
   const crypto = await import('crypto')
   const hash = crypto.createHash('md5').update(chunkData).digest('hex')
-  
+
   return hash === expectedHash
 }
 
 export const mergeChunks = async (fileId: string): Promise<string | null> => {
-  const db = getDB()
-  if (!db) {
-    return null
-  }
-  const result = db.exec(`SELECT * FROM upload_sessions WHERE file_id = "${fileId}"`)
-  if (!result.length || !result[0].values.length) {
-    return null
-  }
+  const prisma = getDB()
 
-  const row = result[0].values[0]
-  const filename = row[1] as string
-  const totalChunks = row[3] as number
-  const uploadedChunks = JSON.parse(row[4] as string || '[]') as number[]
-  const expectedHash = row[5] as string | undefined
+  const session = await prisma.uploadSession.findUnique({ where: { fileId } })
+  if (!session) return null
+
+  const filename = session.filename
+  const totalChunks = session.totalChunks
+  const uploadedChunks = JSON.parse(session.uploadedChunks || '[]') as number[]
+  const expectedHash = session.hash || undefined
 
   if (uploadedChunks.length !== totalChunks) {
     return null
@@ -148,14 +146,14 @@ export const mergeChunks = async (fileId: string): Promise<string | null> => {
   const tempDir = getStoragePath('temp')
   const chunkDir = path.join(tempDir, fileId)
   const documentsDir = getStoragePath('documents')
-  
+
   const sanitizeFilename = (name: string): string => {
     const ext = path.extname(name)
     const base = path.basename(name, ext)
     const sanitized = base.replace(/[^\w\u4e00-\u9fa5\-_]/g, '_')
     return `${sanitized}${ext}`
   }
-  
+
   const sanitizedFilename = sanitizeFilename(filename)
   const newFilename = `${Date.now()}_${sanitizedFilename}`
   const outputPath = path.join(documentsDir, newFilename)
@@ -194,15 +192,14 @@ export const mergeChunks = async (fileId: string): Promise<string | null> => {
       const crypto = await import('crypto')
       const fileData = fs.readFileSync(outputPath)
       const actualHash = crypto.createHash('md5').update(fileData).digest('hex')
-      
+
       if (actualHash !== expectedHash) {
         fs.unlinkSync(outputPath)
         return null
       }
     }
 
-    db.run(`DELETE FROM upload_sessions WHERE file_id = "${fileId}"`)
-    saveDB()
+    await prisma.uploadSession.delete({ where: { fileId } })
 
     return outputPath
   } catch (error) {
@@ -212,107 +209,88 @@ export const mergeChunks = async (fileId: string): Promise<string | null> => {
 }
 
 export const getUploadSession = async (fileId: string): Promise<UploadSession | null> => {
-  const db = getDB()
-  if (!db) {
-    return null
-  }
-  const result = db.exec(`SELECT * FROM upload_sessions WHERE file_id = "${fileId}"`)
-  
-  if (!result.length || !result[0].values.length) {
-    return null
-  }
-  const row = result[0].values[0]
+  const prisma = getDB()
+
+  const session = await prisma.uploadSession.findUnique({ where: { fileId } })
+  if (!session) return null
+
   return {
-    fileId: row[0] as string,
-    filename: row[1] as string,
-    filesize: row[2] as number,
-    totalChunks: row[3] as number,
-    uploadedChunks: JSON.parse(row[4] as string || '[]') as number[],
-    hash: row[5] as string || undefined,
-    createdAt: new Date(row[6] as string),
-    updatedAt: new Date(row[7] as string || row[6] as string)
+    fileId: session.fileId,
+    filename: session.filename,
+    filesize: session.filesize,
+    totalChunks: session.totalChunks,
+    uploadedChunks: JSON.parse(session.uploadedChunks || '[]') as number[],
+    hash: session.hash || undefined,
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt,
   }
 }
 
 export const getUploadProgress = async (fileId: string): Promise<{ progress: number; uploadedChunks: number[] } | null> => {
   const session = await getUploadSession(fileId)
 
-  if (!session) {
-    return null
-  }
+  if (!session) return null
+
   return {
     progress: Math.round((session.uploadedChunks.length / session.totalChunks) * 100),
-    uploadedChunks: session.uploadedChunks
+    uploadedChunks: session.uploadedChunks,
   }
 }
 
 export const cancelUploadSession = async (fileId: string): Promise<boolean> => {
-  const db = getDB()
-  
-  if (!db) {
-    return false
-  }
+  const prisma = getDB()
 
-  const result = db.exec(`SELECT file_id FROM upload_sessions WHERE file_id = "${fileId}"`)
-  
-  if (!result.length || !result[0].values.length) {
-    return false
-  }
+  const session = await prisma.uploadSession.findUnique({ where: { fileId } })
+  if (!session) return false
 
   const chunkDir = path.join(getStoragePath('temp'), fileId)
-  
+
   if (fs.existsSync(chunkDir)) {
     fs.rmSync(chunkDir, { recursive: true })
   }
 
-  db.run(`DELETE FROM upload_sessions WHERE file_id = "${fileId}"`)
-  saveDB()
+  await prisma.uploadSession.delete({ where: { fileId } })
 
   return true
 }
 
 export const cleanupExpiredSessions = async (hours = 24): Promise<void> => {
-  const db = getDB()
-  
-  if (!db) {
-    return
+  const prisma = getDB()
+
+  const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000)
+
+  const expiredSessions = await prisma.uploadSession.findMany({
+    where: { updatedAt: { lt: cutoff } },
+  })
+
+  for (const session of expiredSessions) {
+    const chunkDir = path.join(getStoragePath('temp'), session.fileId)
+    if (fs.existsSync(chunkDir)) {
+      fs.rmSync(chunkDir, { recursive: true })
+    }
   }
 
-  const result = db.exec(`SELECT file_id FROM upload_sessions WHERE updated_at < datetime('now', '-${hours} hours')`)
-  
-  if (result.length && result[0].values.length) {
-    result[0].values.forEach((row: unknown[]) => {
-      const fileId = row[0] as string
-      const chunkDir = path.join(getStoragePath('temp'), fileId)
-      
-      if (fs.existsSync(chunkDir)) {
-        fs.rmSync(chunkDir, { recursive: true })
-      }
-    })
-  }
-
-  db.run(`DELETE FROM upload_sessions WHERE updated_at < datetime('now', '-${hours} hours')`)
-  saveDB()
+  await prisma.uploadSession.deleteMany({
+    where: { updatedAt: { lt: cutoff } },
+  })
 }
 
 export const listUploadSessions = async (userId?: number): Promise<UploadSession[]> => {
-  const db = getDB()
-  if (!db) {return []}
-  let query = 'SELECT * FROM upload_sessions ORDER BY created_at DESC'
-  const result = db.exec(query)
-  if (!result.length || !result[0].values.length) {
-    return []
-  }
+  const prisma = getDB()
 
-  return result[0].values.map((row: unknown[]) => ({
-    fileId: row[0] as string,
-    filename: row[1] as string,
-    filesize: row[2] as number,
-    totalChunks: row[3] as number,
-    uploadedChunks: JSON.parse(row[4] as string || '[]') as number[],
-    hash: row[5] as string || undefined,
-    createdAt: new Date(row[6] as string),
-    updatedAt: new Date(row[7] as string || row[6] as string)
+  const sessions = await prisma.uploadSession.findMany({
+    orderBy: { createdAt: 'desc' },
+  })
+
+  return sessions.map(s => ({
+    fileId: s.fileId,
+    filename: s.filename,
+    filesize: s.filesize,
+    totalChunks: s.totalChunks,
+    uploadedChunks: JSON.parse(s.uploadedChunks || '[]') as number[],
+    hash: s.hash || undefined,
+    createdAt: s.createdAt,
+    updatedAt: s.updatedAt,
   }))
 }
 
@@ -323,9 +301,7 @@ export const getSessionInfo = async (fileId: string): Promise<UploadSession | nu
 export const getMissingChunks = async (fileId: string): Promise<number[] | null> => {
   const session = await getUploadSession(fileId)
 
-  if (!session) {
-    return null
-  }
+  if (!session) return null
 
   const missing: number[] = []
   for (let i = 0; i < session.totalChunks; i++) {
@@ -350,9 +326,7 @@ export const resumeUploadSession = async (fileId: string): Promise<{
 } | null> => {
   const session = await getUploadSession(fileId)
 
-  if (!session) {
-    return null
-  }
+  if (!session) return null
 
   const missingChunks = await getMissingChunks(fileId) || []
   const progress = Math.round((session.uploadedChunks.length / session.totalChunks) * 100)
@@ -361,6 +335,6 @@ export const resumeUploadSession = async (fileId: string): Promise<{
     exists: true,
     session,
     missingChunks,
-    progress
+    progress,
   }
 }

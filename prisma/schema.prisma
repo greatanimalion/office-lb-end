@@ -1,0 +1,192 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DB_DATABASE")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String
+  email        String?  @unique
+  password     String?
+  role         String   @default("user")
+  groupId      Int?     @map("group_id")
+  provider     String?
+  providerId   Int?     @map("provider_id")
+  lastLoginAt  String?  @map("last_login_at")
+  avatar       String?
+
+  documentVersions DocumentVersion[]
+  documentShares   DocumentShare[]
+  auditLogs        AuditLog[]
+  groupMembers     GroupMember[]
+
+  @@map("users")
+}
+
+model Document {
+  id          Int      @id @default(autoincrement())
+  documentVId Int?     @map("document_v_id")
+  ownerId     Int      @map("owner_id")
+  ownerType   String   @map("owner_type")
+  title       String?
+  permission  String?
+  locked      Int      @default(0)
+  lockedBy    Int?     @map("locked_by")
+  status      Int      @default(1)
+  updatedAt   DateTime @map("updated_at") @default(now())
+
+  versions   DocumentVersion[]
+  shares     DocumentShare[]
+  shareLinks ShareLink[]
+  auditLogs  AuditLog[]
+
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id         Int      @id @default(autoincrement())
+  documentId Int      @map("document_id")
+  filepath   String?
+  filesize   Int?
+  vNumber    Int?     @map("v_number")
+  alterBy    Int?     @map("alter_by")
+  createdAt  DateTime @map("created_at") @default(now())
+
+  document Document @relation(fields: [documentId], references: [id])
+  user     User?    @relation(fields: [alterBy], references: [id])
+
+  @@map("document_versions")
+}
+
+model DocumentShare {
+  id         Int      @id @default(autoincrement())
+  documentId Int      @map("document_id")
+  userId     Int      @map("user_id")
+  permission String
+  sharedBy   Int      @map("shared_by")
+  createdAt  DateTime @map("created_at") @default(now())
+
+  document Document @relation(fields: [documentId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@map("document_shares")
+}
+
+model ShareLink {
+  id          Int       @id @default(autoincrement())
+  documentId  Int       @map("document_id")
+  token       String    @unique
+  password    String?
+  expiresAt   DateTime? @map("expires_at")
+  maxViews    Int       @map("max_views") @default(0)
+  views       Int       @default(0)
+  permissions String
+  createdAt   DateTime  @map("created_at") @default(now())
+
+  document Document @relation(fields: [documentId], references: [id])
+
+  @@map("share_links")
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  documentId Int?     @map("document_id")
+  action     String
+  entityType String?  @map("entity_type")
+  details    String?
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @map("created_at") @default(now())
+
+  user     User?     @relation(fields: [userId], references: [id])
+  document Document? @relation(fields: [documentId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model UploadSession {
+  fileId         String   @id @map("file_id")
+  filename       String
+  filesize       Int
+  totalChunks    Int      @map("total_chunks")
+  uploadedChunks String   @map("uploaded_chunks")
+  hash           String?
+  createdAt      DateTime @map("created_at") @default(now())
+  updatedAt      DateTime @map("updated_at") @default(now())
+
+  @@map("upload_sessions")
+}
+
+model VerificationCode {
+  id        Int      @id @default(autoincrement())
+  code      String
+  type      String
+  target    String
+  expiresAt DateTime @map("expires_at")
+  used      Int      @default(0)
+  createdAt DateTime @map("created_at") @default(now())
+
+  @@map("verification_codes")
+}
+
+model Group {
+  id          Int      @id @default(autoincrement())
+  name        String
+  ownerId     Int      @map("owner_id")
+  createdAt   String?  @map("created_at")
+  description String?
+
+  members GroupMember[]
+
+  @@map("groups")
+}
+
+model GroupMember {
+  id        Int      @id @default(autoincrement())
+  groupId   Int      @map("group_id")
+  userId    Int      @map("user_id")
+  role      String   @default("member")
+  createdAt String?  @map("created_at")
+
+  group Group @relation(fields: [groupId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@unique([groupId, userId])
+  @@map("group_members")
+}
+
+model Folder {
+  id             Int      @id @default(autoincrement())
+  filename       String
+  parentFolderId Int?     @map("parent_folder_id")
+  groupId        Int      @map("group_id")
+  permission     String?
+  createdAt      DateTime @map("created_at") @default(now())
+  updatedAt      DateTime @map("updated_at") @default(now())
+
+  parent   Folder?  @relation("FolderTree", fields: [parentFolderId], references: [id])
+  children Folder[] @relation("FolderTree")
+
+  @@map("folders")
+}
+
+model Permission {
+  id           Int     @id @default(autoincrement())
+  operatorType String? @map("operator_type")
+  operatorId   Int?    @map("operator_id")
+  toId         Int?    @map("to_id")
+  targetId     Int?    @map("target_id")
+  permission   String?
+  startTime    String? @map("start_time")
+  endTime      String? @map("end_time")
+  password     String?
+  count        Int?
+  createdAt    String? @map("created_at")
+
+  @@map("permissions")
+}

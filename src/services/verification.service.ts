@@ -108,7 +108,7 @@ export const generateVerificationCode = async (
   return {
     success: true,
     message: '验证码发送成功'
-  } 
+  }
 }
 
 export const verifyCode = async (

@@ -104,7 +104,7 @@ export const getAllDocumentsController = async (
     }
   }
   try {
-    const documents =  getAllDocuments(page, pageSize, ownerId, owner_type,filter)
+    const documents =  await getAllDocuments(page, pageSize, ownerId, owner_type,filter)
     res.json({ success: true, data: documents })
   } catch (error) {
     logger.error('Get all documents error:', error)

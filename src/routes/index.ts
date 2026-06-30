@@ -1,13 +1,13 @@
 import { Router } from 'express'
 import userRoutes from './user.routes'
-import oauthRoutes from './oauth.route'
+import oauthRoutes from './oauth.routes'
 import documentRoutes from './document.routes'
 import folderRoutes from './folder.routes'
 import permissionRoutes from './permission.routes'
 import onlyofficeRoutes from './onlyoffice.routes'
 import searchRoutes from './search.routes'
 import auditRoutes from './audit.routes'
-import groupRoutes from './group.router'
+import groupRoutes from './group.routes'
 
 const router = Router()
 

@@ -13,7 +13,7 @@ import { ensureDirectoryExists } from './utils/file'
 import logger from './utils/logger'
 import { initMeiliSearch } from './utils/MeiliSearch'
 import './config/passport'
-import { getDB, saveDB } from './db'
+import { getDB } from './db'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -86,21 +86,20 @@ export const startServer = async (): Promise<void> => {
     }, 10000)
   }
 
-  makSureAdminUserExist()
+  await makSureAdminUserExist()
   process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
   process.on('SIGINT', () => gracefulShutdown('SIGINT'))
 }
 
-function makSureAdminUserExist() {
-  const db = getDB()
-  if (!db) {
-   return 
+async function makSureAdminUserExist() {
+  const prisma = getDB()
+  const user = await prisma.user.findUnique({ where: { email: '15294745236@163.com' } })
+  if (user) {
+    await prisma.user.update({
+      where: { email: '15294745236@163.com' },
+      data: { role: 'admin' },
+    })
   }
-  const result = db.exec('SELECT * FROM users WHERE email = "15294745236@163.com"')
-  if (result.length && result[0].values.length) {
-    db.run('UPDATE users SET role = "admin" WHERE email = "15294745236@163.com"')
-  }
-  saveDB()
 }
 
 

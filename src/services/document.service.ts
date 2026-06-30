@@ -1,321 +1,290 @@
 import fs from 'fs'
-import { getDB, saveDB } from '../db'
+import { getDB } from '../db'
 import { type Document as _Document, DocumentVersion, OwnerType } from '../models/document.js'
 import logger from '../utils/logger'
 
 type Document = Partial<_Document> & Partial<DocumentVersion>
 type DocumentVersionWithCreatedAt = Partial<DocumentVersion> & { created_at: string, version_number: number, filesize: number, alter_by_username: string }
-// 获取文档版本列表
+
 export const getDocumentVersion = async (documentId: number): Promise<DocumentVersionWithCreatedAt[]> => {
-  const db = getDB()
-  if (!db) {
-    return []
-  }
-  const result = db.exec(`SELECT dv.id, dv.document_id, dv.fileSize, dv.v_number, dv.created_at, u.username as alter_by_username
-     FROM document_versions dv JOIN users u ON dv.alter_by = u.id WHERE dv.document_id=${documentId}`)
-  const versions: DocumentVersionWithCreatedAt[] = []
-  if (result.length && result[0].values.length) {
-    try {
-      result[0].values.forEach((row: unknown[]) => {
-        versions.push({
-          id: row[0] as number,
-          document_id: row[1] as number,
-          filesize: row[2] as number,
-          version_number: row[3] as number,
-          created_at: row[4] as string,
-          alter_by_username: row[5] as string,
-        })
-      })
-    } catch (error) {
-      logger.error('Error parsing document version:', error)
-      return []
-    }
-  }
-  return versions
+  const prisma = getDB()
+
+  const versions = await prisma.documentVersion.findMany({
+    where: { documentId },
+    include: { user: { select: { username: true } } },
+    orderBy: { vNumber: 'desc' },
+  })
+
+  return versions.map(v => ({
+    id: v.id,
+    document_id: v.documentId,
+    filesize: v.filesize || 0,
+    version_number: v.vNumber || 0,
+    created_at: v.createdAt.toISOString(),
+    alter_by_username: v.user?.username || '未知',
+  }))
 }
-// 获取文档最大版本号
+
 export const getMaxVersionNumber = async (documentId: number): Promise<number> => {
-  const db = getDB()
-  if (!db) {
-    return 0
-  }
-  const result = db.exec(`SELECT MAX(v_number) FROM document_versions WHERE document_id=${documentId}`)
-  if (result.length && result[0].values.length) {
-    return Number(result[0].values[0][0] as string) || 0
-  }
-  return 0
+  const prisma = getDB()
+
+  const result = await prisma.documentVersion.aggregate({
+    where: { documentId },
+    _max: { vNumber: true },
+  })
+
+  return result._max.vNumber || 0
 }
 
 type OmitDocument=Omit<Document, 'owner_type'>
-// 获取所有文档
-export const getAllDocuments =  (page: number, pageSize: number = 100, ownerId: number, owner_type: OwnerType, filter?: string): {documents: OmitDocument[], total: number} => {
+
+export const getAllDocuments = async (page: number, pageSize: number = 100, ownerId: number, owner_type: OwnerType, filter?: string): Promise<{documents: OmitDocument[], total: number}> => {
   const offset = (page - 1) * pageSize
-  const db = getDB()
-  if (!db) { return {documents: [], total: 0} }
-  let result
-  let total
-  if(filter){
-    result = db.exec(`SELECT 
-    d.id, d.document_v_id, d.title, dv.fileSize, d.status, d.locked, d.locked_by, dv.created_at, d.updated_at, dv.v_number
-    FROM documents d JOIN document_versions dv ON d.document_v_id = dv.id 
-    WHERE d.owner_id=${ownerId} AND d.owner_type="${owner_type}" AND d.title LIKE '%${filter}%' LIMIT ${pageSize} OFFSET ${offset}`)
-    total = db.exec(`SELECT COUNT(*) FROM documents d JOIN document_versions dv ON d.document_v_id = dv.id 
-    WHERE d.owner_id=${ownerId} AND d.owner_type="${owner_type}" AND d.title LIKE '%${filter}%'`)
-  }else {
-    result = db.exec(`SELECT 
-    d.id, d.document_v_id, d.title, dv.fileSize, d.status, d.locked, d.locked_by, dv.created_at, d.updated_at, dv.v_number
-    FROM documents d JOIN document_versions dv ON d.document_v_id = dv.id 
-    WHERE d.owner_id=${ownerId} AND d.owner_type="${owner_type}" LIMIT ${pageSize} OFFSET ${offset}`)
-    total = db.exec(`SELECT COUNT(*) FROM documents d JOIN document_versions dv ON d.document_v_id = dv.id 
-    WHERE d.owner_id=${ownerId} AND d.owner_type="${owner_type}"`)
-  }
-  const documents: OmitDocument[] = []
-  if (result.length && result[0].values.length) {
-    result[0].values.forEach((row: unknown[]) => {
-      documents.push({
-        id: row[0] as number,
-        document_v_id: row[1] as number,
-        title: row[2] as string,
-        fileSize: row[3] as number,
-        status: row[4] as number,
-        version_number: row[9] as number,
-        locked: row[5] as number,
-        locked_by: row[6] as number | undefined,
-        created_at: row[7] as string,
-        updated_at: row[8] as string
-      })
-    })
-  }
-  return {documents: documents, total: Number(total[0].values[0][0] as string) || 0}
-}
-// 获取用户所有文档
-export const getDocumentsByOwner = async (ownerId: number): Promise<Document[]> => {
-  const db = getDB()
+  const prisma = getDB()
 
-  if (!db) {
-    return []
+  const where: Record<string, unknown> = {
+    ownerId,
+    ownerType: owner_type,
   }
 
-  const result = db.exec(`
-    SELECT d.id, d.title, d.filename, d.filepath, d.filesize, d.owner_id_id, d.status, d.locked, d.locked_by, d.created_at, d.updated_at
-    FROM documents d
-    WHERE d.owner_id = ${ownerId} AND d.status != 'deleted'
-    ORDER BY d.updated_at DESC
-  `)
-
-  const documents: Omit<Document, 'owner_type'>[] = []
-
-  if (result.length && result[0].values.length) {
-    result[0].values.forEach((row: unknown[]) => {
-      documents.push({
-        id: row[0] as number,
-        title: row[1] as string,
-        filepath: row[3] as string,
-        fileSize: row[4] as number,
-        owner_id: row[4] as number,
-        status: Number(row[5] as string),
-        locked: row[6] as number,
-        locked_by: row[7] as number | undefined,
-        created_at: row[8] as string,
-        updated_at: row[9] as string
-      })
-    })
-  }
-  return documents
-}
-// 获取用户所有分享文档
-export const getSharedDocuments = async (userId: number): Promise<Document[]> => {
-  const db = getDB()
-
-  if (!db) {
-    return []
+  if (filter) {
+    where.title = { contains: filter }
   }
 
-  const result = db.exec(`
-    SELECT d.id, d.title, d.filename, d.filepath, d.filesize, d.owner_id_id_id, d.owner_id_id, d.status, d.locked, d.locked_by, d.created_at, d.updated_at, ds.permission
-    FROM documents d
-    JOIN document_shares ds ON d.id = ds.document_id
-    WHERE ds.user_id = ${userId} AND d.status != 'deleted'
-    ORDER BY d.updated_at DESC
-  `)
+  const [docRecords, total] = await Promise.all([
+    prisma.document.findMany({
+      where,
+      include: { versions: { orderBy: { vNumber: 'desc' }, take: 1 } },
+      skip: offset,
+      take: pageSize,
+      orderBy: { updatedAt: 'desc' },
+    }),
+    prisma.document.count({ where }),
+  ])
 
-  const documents: Document[] = []
-
-  if (result.length && result[0].values.length) {
-    result[0].values.forEach((row: unknown[]) => {
-      documents.push({
-        id: row[0] as number,
-        title: row[1] as string,
-        filepath: row[3] as string,
-        fileSize: row[4] as number,
-        owner_id: row[5] as number,
-        status: Number(row[5] as string),
-        locked: row[6] as number,
-        locked_by: row[7] as number | undefined,
-        created_at: row[8] as string,
-        updated_at: row[9] as string
-      })
-    })
-  }
-
-  return documents
-}
-// 获取文档详情
-export const getDocumentById = async (id: number): Promise<Document | null> => {
-  const db = getDB()
-  if (!db) {
-    return null
-  }
-  const result = db.exec(`
-    SELECT d.id, d.title, d.locked, d.locked_by, d.status, d.updated_at, dv.filepath, dv.filesize, dv.v_number, dv.alter_by, dv.created_at
-    FROM documents d JOIN document_versions dv ON d.document_v_id = dv.id
-    WHERE d.id=${id} 
-  `)
-  if (!result.length || !result[0].values.length) {
-    return null
-  }
-  const row = result[0].values[0]
   return {
-    id: row[0] as number,
-    title: row[1] as string,
-    locked: row[2] as number,
-    locked_by: row[3] as number | undefined,
-    status: row[4] as number,
-    updated_at: row[5] as string,
-    filepath: row[6] as string,
-    fileSize: row[7] as number,
-    v_number: row[8] as number,
-    alter_by: row[9] as number,
-    created_at: row[10] as string,
-
+    documents: docRecords.map(d => ({
+      id: d.id,
+      document_v_id: d.documentVId || 0,
+      title: d.title || '',
+      fileSize: d.versions[0]?.filesize || 0,
+      status: d.status,
+      version_number: d.versions[0]?.vNumber || 0,
+      locked: d.locked,
+      locked_by: d.lockedBy || undefined,
+      created_at: d.versions[0]?.createdAt.toISOString() || d.updatedAt.toISOString(),
+      updated_at: d.updatedAt.toISOString(),
+    })),
+    total,
   }
 }
-// 创建文档
+
+export const getDocumentsByOwner = async (ownerId: number): Promise<Document[]> => {
+  const prisma = getDB()
+
+  const docs = await prisma.document.findMany({
+    where: { ownerId, status: { not: 0 } },
+    include: { versions: { orderBy: { vNumber: 'desc' }, take: 1 } },
+    orderBy: { updatedAt: 'desc' },
+  })
+
+  return docs.map(d => ({
+    id: d.id,
+    title: d.title || '',
+    filepath: d.versions[0]?.filepath || '',
+    fileSize: d.versions[0]?.filesize || 0,
+    owner_id: d.ownerId,
+    status: d.status,
+    locked: d.locked,
+    locked_by: d.lockedBy || undefined,
+    created_at: d.versions[0]?.createdAt.toISOString() || d.updatedAt.toISOString(),
+    updated_at: d.updatedAt.toISOString(),
+  }))
+}
+
+export const getSharedDocuments = async (userId: number): Promise<Document[]> => {
+  const prisma = getDB()
+
+  const shares = await prisma.documentShare.findMany({
+    where: { userId },
+    include: {
+      document: {
+        include: { versions: { orderBy: { vNumber: 'desc' }, take: 1 } },
+      },
+    },
+    orderBy: { document: { updatedAt: 'desc' } },
+  })
+
+  return shares.map(s => ({
+    id: s.document.id,
+    title: s.document.title || '',
+    filepath: s.document.versions[0]?.filepath || '',
+    fileSize: s.document.versions[0]?.filesize || 0,
+    owner_id: s.document.ownerId,
+    status: s.document.status,
+    locked: s.document.locked,
+    locked_by: s.document.lockedBy || undefined,
+    created_at: s.document.versions[0]?.createdAt.toISOString() || s.document.updatedAt.toISOString(),
+    updated_at: s.document.updatedAt.toISOString(),
+    permission: s.permission,
+  }))
+}
+
+export const getDocumentById = async (id: number): Promise<Document | null> => {
+  const prisma = getDB()
+
+  const doc = await prisma.document.findUnique({
+    where: { id },
+    include: { versions: { orderBy: { vNumber: 'desc' }, take: 1 } },
+  })
+
+  if (!doc) return null
+
+  return {
+    id: doc.id,
+    title: doc.title || '',
+    locked: doc.locked,
+    locked_by: doc.lockedBy || undefined,
+    status: doc.status,
+    updated_at: doc.updatedAt.toISOString(),
+    filepath: doc.versions[0]?.filepath || '',
+    fileSize: doc.versions[0]?.filesize || 0,
+    v_number: doc.versions[0]?.vNumber || 0,
+    alter_by: doc.versions[0]?.alterBy || 0,
+    created_at: doc.versions[0]?.createdAt.toISOString() || doc.updatedAt.toISOString(),
+  }
+}
+
 export const createDocument = async (
   ownerId: number,
   owner_type: OwnerType,
   title: string
 ): Promise<number> => {
-  const db = getDB()
-  if (!db) { throw new Error('数据库未初始化') }
-  db.run(
-    `INSERT INTO documents (  owner_id, owner_type,title) VALUES 
-    (${ownerId}, "${owner_type}","${title}")`
-  )
-  const lastIdResult = db.exec('SELECT last_insert_rowid()')
-  const lastId = lastIdResult[0].values[0][0] as number
-  db.run(`INSERT INTO audit_logs (user_id, document_id, action) VALUES (${ownerId}, ${lastId}, "创建文档")`)
-  saveDB()
-  return lastId
+  const prisma = getDB()
+
+  const doc = await prisma.document.create({
+    data: {
+      ownerId,
+      ownerType: owner_type,
+      title,
+    },
+  })
+
+  await prisma.auditLog.create({
+    data: {
+      userId: ownerId,
+      documentId: doc.id,
+      action: '创建文档',
+    },
+  })
+
+  return doc.id
 }
-// 关联文档版本
-export const DocumentRelateDV = (d_id: number, d_v_id: number) => {
-  const db = getDB()
-  if (!db) {
-    return logger.error('数据库未初始化')
-  }
-  db.run(`UPDATE documents SET document_v_id = ${d_v_id} WHERE id = ${d_id}`)
-  saveDB()
+
+export const DocumentRelateDV = async (d_id: number, d_v_id: number) => {
+  const prisma = getDB()
+  await prisma.document.update({
+    where: { id: d_id },
+    data: { documentVId: d_v_id },
+  })
 }
-// 创建文档版本
+
 export const createDocumentVersion = async (userId: number, documentId: number, filepath: string,
   filesize: number = 0, V: number = 1,
 ): Promise<number> => {
-  const db = getDB()
-  if (!db) {
-    throw new Error('数据库未初始化')
-  }
+  const prisma = getDB()
 
-  db.run(`
-    INSERT INTO document_versions (document_id, v_number, filepath, alter_by, filesize)
-    VALUES (${documentId}, ${V}, "${filepath}", ${userId}, ${filesize})
-  `)
-  const lastIdResult = db.exec('SELECT last_insert_rowid()')
-  const lastId = lastIdResult[0].values[0][0] as number
-  db.run(`INSERT INTO audit_logs (user_id, document_id, action) VALUES (${userId}, ${documentId}, "创建版本 ${V}")`)
-  saveDB()
-  return lastId
+  const version = await prisma.documentVersion.create({
+    data: {
+      documentId,
+      vNumber: V,
+      filepath,
+      alterBy: userId,
+      filesize,
+    },
+  })
+
+  await prisma.auditLog.create({
+    data: {
+      userId,
+      documentId,
+      action: `创建版本 ${V}`,
+    },
+  })
+
+  return version.id
 }
-// 更新文档名称与权限
-export const updataDocuemnt=(dId:number,title:string,permission:string)=>{
-  const db = getDB()
-  if (!db) {
+
+export const updataDocuemnt = async (dId: number, title: string, permission: string): Promise<boolean> => {
+  const prisma = getDB()
+  try {
+    await prisma.document.update({
+      where: { id: dId },
+      data: { title, permission },
+    })
+    return true
+  } catch {
     return false
   }
-  db.run(`UPDATE documents SET title="${title}",permission="${permission}" WHERE id = ${dId}`)
-  saveDB()
-  return true
 }
 
 export const restoreDocumentVersion = async (documentId: number, versionNumber: number, userId: number): Promise<boolean> => {
-  const db = getDB()
+  const prisma = getDB()
 
-  if (!db) {
+  try {
+    await prisma.document.update({
+      where: { id: documentId },
+      data: { documentVId: versionNumber },
+    })
+    await prisma.auditLog.create({
+      data: {
+        userId,
+        documentId,
+        action: `恢复版本 ${versionNumber}`,
+      },
+    })
+    return true
+  } catch {
     return false
   }
-  db.run(`UPDATE documents SET document_v_id = ${versionNumber} WHERE id = ${documentId}`)
-  db.run(`INSERT INTO audit_logs (user_id, document_id, action) VALUES (${userId}, ${documentId}, "恢复版本 ${versionNumber}")`)
-  saveDB()
-
-  return true
 }
 
 export const lockDocument = async (documentId: number, userId: number): Promise<boolean> => {
-  const db = getDB()
+  const prisma = getDB()
 
-  if (!db) {
+  const doc = await prisma.document.findUnique({ where: { id: documentId } })
+  if (!doc || doc.ownerId !== userId || doc.locked === 1) {
     return false
   }
 
-  const documentResult = db.exec(`SELECT owner_id, locked FROM documents WHERE id = ${documentId}`)
-
-  if (!documentResult.length || !documentResult[0].values.length) {
-    return false
-  }
-
-  const row = documentResult[0].values[0]
-  const ownerId = row[0] as number
-  const isLocked = (row[1] as number) === 1
-
-  if (ownerId !== userId) {
-    return false
-  }
-
-  if (isLocked) {
-    return false
-  }
-
-  db.run(`UPDATE documents SET locked = 1, locked_by = ${userId} WHERE id = ${documentId}`)
-  db.run(`INSERT INTO audit_logs (user_id, document_id, action) VALUES (${userId}, ${documentId}, "锁定文档")`)
-  saveDB()
+  await prisma.document.update({
+    where: { id: documentId },
+    data: { locked: 1, lockedBy: userId },
+  })
+  await prisma.auditLog.create({
+    data: { userId, documentId, action: '锁定文档' },
+  })
 
   return true
 }
 
 export const unlockDocument = async (documentId: number, userId: number): Promise<boolean> => {
-  const db = getDB()
+  const prisma = getDB()
 
-  if (!db) {
+  const doc = await prisma.document.findUnique({ where: { id: documentId } })
+  if (!doc) return false
+
+  if (doc.ownerId !== userId && doc.lockedBy !== userId) {
     return false
   }
 
-  const documentResult = db.exec(`SELECT owner_id, locked_by FROM documents WHERE id = ${documentId}`)
-
-  if (!documentResult.length || !documentResult[0].values.length) {
-    return false
-  }
-
-  const row = documentResult[0].values[0]
-  const ownerId = row[0] as number
-  const lockedBy = row[1] as number
-
-  if (ownerId !== userId && lockedBy !== userId) {
-    return false
-  }
-
-  db.run(`UPDATE documents SET locked = 0, locked_by = NULL WHERE id = ${documentId}`)
-  db.run(`INSERT INTO audit_logs (user_id, document_id, action) VALUES (${userId}, ${documentId}, "解锁文档")`)
-  saveDB()
+  await prisma.document.update({
+    where: { id: documentId },
+    data: { locked: 0, lockedBy: null },
+  })
+  await prisma.auditLog.create({
+    data: { userId, documentId, action: '解锁文档' },
+  })
 
   return true
 }
@@ -325,80 +294,58 @@ export const updateDocument = async (
   title: string,
   userId: number
 ): Promise<boolean> => {
-  const db = getDB()
+  const prisma = getDB()
 
-  if (!db) {
-    return false
-  }
+  const doc = await prisma.document.findUnique({ where: { id } })
+  if (!doc || doc.ownerId !== userId) return false
 
-  const documentResult = db.exec(`SELECT owner_id FROM documents WHERE id = ${id}`)
-
-  if (!documentResult.length || !documentResult[0].values.length) {
-    return false
-  }
-
-  const ownerId = documentResult[0].values[0][0] as number
-
-  if (ownerId !== userId) {
-    return false
-  }
-
-  db.run(`UPDATE documents SET title = "${title}", updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`)
-  db.run(`INSERT INTO audit_logs (user_id, document_id, action) VALUES (${userId}, ${id}, "修改文档信息")`)
-  saveDB()
+  await prisma.document.update({
+    where: { id },
+    data: { title },
+  })
+  await prisma.auditLog.create({
+    data: { userId, documentId: id, action: '修改文档信息' },
+  })
 
   return true
 }
 
 export const deleteDocument = async (id: number, userId: number): Promise<boolean> => {
-  const db = getDB()
+  const prisma = getDB()
 
-  if (!db) {
-    return false
+  const doc = await prisma.document.findUnique({ where: { id } })
+  if (!doc) return false
+
+  if (doc.ownerId !== userId) return false
+
+  const versions = await prisma.documentVersion.findMany({
+    where: { documentId: id },
+  })
+
+  for (const version of versions) {
+    if (version.filepath && fs.existsSync(version.filepath)) {
+      fs.unlinkSync(version.filepath)
+    }
   }
 
-  const documentResult = db.exec(`SELECT * FROM documents WHERE id = ${id}`)
-
-  if (!documentResult.length || !documentResult[0].values.length) {
-    return false
-  }
-
-  const row = documentResult[0].values[0]
-  const ownerId = row[4] as number
-
-  if (ownerId !== userId) {
-    return false
-  }
-
-  const filepath = row[3] as string
-  if (fs.existsSync(filepath)) {
-    fs.unlinkSync(filepath)
-  }
-
-  const versions = await getDocumentVersion(id)
-
-
-  db.run(`DELETE FROM document_versions WHERE document_id = ${id}`)
-  db.run(`DELETE FROM document_shares WHERE document_id = ${id}`)
-  db.run(`DELETE FROM documents WHERE id = ${id}`)
-  db.run(`INSERT INTO audit_logs (user_id, document_id, action) VALUES (${userId}, ${id}, "删除文档")`)
-  saveDB()
+  await prisma.documentVersion.deleteMany({ where: { documentId: id } })
+  await prisma.documentShare.deleteMany({ where: { documentId: id } })
+  await prisma.document.delete({ where: { id } })
+  await prisma.auditLog.create({
+    data: { userId, documentId: id, action: '删除文档' },
+  })
 
   return true
 }
-// 删除文档版本
-export const deleteDVserion=(dvId:number)=>{
-  const db = getDB()
-  if (!db) {
+
+export const deleteDVserion = async (dvId: number): Promise<boolean> => {
+  const prisma = getDB()
+  try {
+    await prisma.documentVersion.delete({ where: { id: dvId } })
+    return true
+  } catch {
     return false
   }
-  try{
-    db.run(`DELETE FROM document_versions WHERE id = ${dvId}`)
-  }catch(err){
-    return false
-  }
-  saveDB()
-  return true
 }
 
 export const shareDocument = async (
@@ -407,30 +354,25 @@ export const shareDocument = async (
   permission: string,
   userId: number
 ): Promise<boolean> => {
-  const db = getDB()
+  const prisma = getDB()
 
-  if (!db) {
-    return false
-  }
-
-  const documentResult = db.exec(`SELECT owner_id FROM documents WHERE id = ${documentId}`)
-
-  if (!documentResult.length || !documentResult[0].values.length) {
-    return false
-  }
-
-  const ownerId = documentResult[0].values[0][0] as number
-
-  if (ownerId !== userId) {
-    return false
-  }
+  const doc = await prisma.document.findUnique({ where: { id: documentId } })
+  if (!doc || doc.ownerId !== userId) return false
 
   try {
-    db.run(`INSERT INTO document_shares (document_id, user_id, permission, shared_by) VALUES (${documentId}, ${targetUserId}, "${permission}", ${userId})`)
-    db.run(`INSERT INTO audit_logs (user_id, document_id, action) VALUES (${userId}, ${documentId}, "分享文档给用户 ${targetUserId}")`)
-    saveDB()
+    await prisma.documentShare.create({
+      data: {
+        documentId,
+        userId: targetUserId,
+        permission,
+        sharedBy: userId,
+      },
+    })
+    await prisma.auditLog.create({
+      data: { userId, documentId, action: `分享文档给用户 ${targetUserId}` },
+    })
     return true
-  } catch (err) {
+  } catch {
     return false
   }
 }
@@ -440,43 +382,23 @@ export const unshareDocument = async (
   targetUserId: number,
   userId: number
 ): Promise<boolean> => {
-  const db = getDB()
+  const prisma = getDB()
 
-  if (!db) {
-    return false
-  }
+  const doc = await prisma.document.findUnique({ where: { id: documentId } })
+  if (!doc || doc.ownerId !== userId) return false
 
-  const documentResult = db.exec(`SELECT owner_id FROM documents WHERE id = ${documentId}`)
-
-  if (!documentResult.length || !documentResult[0].values.length) {
-    return false
-  }
-
-  const ownerId = documentResult[0].values[0][0] as number
-
-  if (ownerId !== userId) {
-    return false
-  }
-
-  db.run(`DELETE FROM document_shares WHERE document_id = ${documentId} AND user_id = ${targetUserId}`)
-  saveDB()
+  await prisma.documentShare.deleteMany({
+    where: { documentId, userId: targetUserId },
+  })
 
   return true
 }
 
 export const trackDocumentUpdate = async (id: number, userId: number): Promise<void> => {
-  const db = getDB()
+  const prisma = getDB()
 
-  if (!db) {
-    return
-  }
-
-  const documentResult = db.exec(`SELECT filepath FROM documents WHERE id = ${id}`)
-  if (documentResult.length > 0 && documentResult[0].values.length > 0) {
-    const filepath = documentResult[0].values[0][0] as string
-    // await createDocumentVersion(id, filepath, userId)
-  }
-
-  db.run(`UPDATE documents SET updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`)
-  saveDB()
+  await prisma.document.update({
+    where: { id },
+    data: { updatedAt: new Date() },
+  })
 }

@@ -13,7 +13,7 @@ await esbuild.build({
   outfile: join(__dirname, 'dist/index.js'),
   format: 'esm',
   minify: true,
-  external: ['sql.js', 'sharp', 'tesseract.js'],
+  external: ['@prisma/client', 'sharp', 'tesseract.js'],
   logLevel: 'info',
 })
 
