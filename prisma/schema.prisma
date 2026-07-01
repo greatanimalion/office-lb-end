@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DB_DATABASE")
 }
 
 model User {
@@ -177,10 +176,11 @@ model Folder {
 
 model Permission {
   id           Int     @id @default(autoincrement())
-  operatorType String? @map("operator_type")
-  operatorId   Int?    @map("operator_id")
-  toId         Int?    @map("to_id")
-  targetId     Int?    @map("target_id")
+  group_id     Int?    @map("group_id")
+  operator_id   Int?    @map("operator_id")
+  to_type      String? @map("to_type")
+  to_id         Int?    @map("to_id")
+  target_id     Int?    @map("target_id")
   permission   String?
   startTime    String? @map("start_time")
   endTime      String? @map("end_time")

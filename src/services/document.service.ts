@@ -143,6 +143,9 @@ export const getDocumentById = async (id: number): Promise<Document | null> => {
   return {
     id: doc.id,
     title: doc.title || '',
+    owner_id: doc.ownerId,
+    owner_type: doc.ownerType as OwnerType,
+    permission: doc.permission || undefined,
     locked: doc.locked,
     locked_by: doc.lockedBy || undefined,
     status: doc.status,

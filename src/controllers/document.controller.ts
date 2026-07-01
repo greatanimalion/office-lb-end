@@ -104,7 +104,7 @@ export const getAllDocumentsController = async (
     }
   }
   try {
-    const documents =  await getAllDocuments(page, pageSize, ownerId, owner_type,filter)
+    const documents = await getAllDocuments(page, pageSize, ownerId, owner_type, filter)
     res.json({ success: true, data: documents })
   } catch (error) {
     logger.error('Get all documents error:', error)
@@ -158,6 +158,8 @@ export const getDocumentController = async (
     const ext = path.extname(filePath).toLowerCase();
     res.setHeader('Content-Type', contentTypeMap[ext] || 'application/octet-stream');
     res.setHeader('Content-Length', stat.size.toString())
+    const encodedFilename = encodeURIComponent(document.title!||('未命名文件.'+ext))
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFilename}`)
     const fileStream = fs.createReadStream(filePath)
     fileStream.pipe(res)
   } catch (error) {

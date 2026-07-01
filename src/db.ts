@@ -1,11 +1,14 @@
 import { PrismaClient } from '@prisma/client'
+import { PrismaLibSql } from '@prisma/adapter-libsql'
 import logger from './utils/logger'
 
 let prisma: PrismaClient | null = null
 
 export const initDB = async (): Promise<void> => {
   try {
-    prisma = new PrismaClient()
+    const url = process.env.DB_DATABASE || 'file:./database.sqlite'
+    const adapter = new PrismaLibSql({ url })
+    prisma = new PrismaClient({ adapter })
     await prisma.$connect()
     logger.info('Database connected via Prisma')
   } catch (error) {
