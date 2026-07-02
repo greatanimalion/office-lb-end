@@ -58,10 +58,9 @@ export const removePermissionController = async (
       res.status(400).json({ error: '无效的参数' })
       return
     }
-
-    res.json({ success: true })
+    res.status(200).json({ success: true })
   } catch (error) {
     logger.error('Remove permission error:', error)
-    res.status(500).json({ error: '移除权限失败' })
+    res.status(500).json({ success: false, message: '移除权限失败' })
   }
 }

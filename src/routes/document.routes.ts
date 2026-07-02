@@ -50,8 +50,8 @@ router.get('/all', getAllDocumentsController as RequestHandler)
 router.get('/:id/versions', getDocumentVersionsController as RequestHandler)
 router.delete('/:id/version', deleteDocumentVersionController as RequestHandler)
 router.post('/revert', revertDocumentVersionController as RequestHandler)
-// router.post('/:id/lock', lockDocumentController as any)
-// router.post('/:id/unlock', unlockDocumentController as any)
+router.post('/:id/lock', lockDocumentController as any)
+router.post('/:id/unlock', unlockDocumentController as any)
 router.post('/uploadTo', uploadDocumentController as RequestHandler)
 
 

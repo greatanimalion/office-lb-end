@@ -10,6 +10,7 @@ export interface CreateGroupOptions {
 export interface GroupMember {
   id: number
   groupId: number
+  avatar?: string
   userId: number
   username: string
   email: string
@@ -223,6 +224,7 @@ export const getGroupMembers = async (groupId: number): Promise<GroupMember[]> =
     id: m.id,
     groupId: m.groupId,
     userId: m.userId,
+    avatar: m.user.avatar || '',
     username: m.user.username,
     email: m.user.email || '',
     role: m.role,

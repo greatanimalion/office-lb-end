@@ -3,7 +3,7 @@ import { downloadFile } from '../utils/file'
 import { generateToken } from '../utils/jwt'
 import logger from '../utils/logger'
 import { createDocumentVersion, DocumentRelateDV, getDocumentById, getMaxVersionNumber } from './document.service'
-import type { DocumentAccessResult } from './permission.service'
+import { checkDocumentAccess, type DocumentAccessResult } from './permission.service'
 
 export interface OnlyOfficeConfig {
   documentServerUrl: string
@@ -85,6 +85,25 @@ export const handleCallback = async (body: any): Promise<void> => {
         logger.error(`Document ${key} is not a valid document ID`)
         break
       }
+      // 校验权限
+      const document = await getDocumentById(id)
+      if (!document) {
+        logger.error(`Document ${id} not found`)
+        break
+      }
+      if(document.owner_type=='public'){
+       console.log(`Document ${id} is public`)
+        break
+      }
+      // const access = await checkDocumentAccess(
+      //   { id, ownerId: document.owner_id!, ownerType: document.owner_type! },
+      //   Number(users[0]),
+      //   document
+      // )
+      // if (!access.EDIT) {
+      //   logger.error(`User ${users[0]} does not have edit access to document ${id}`)
+      //   break
+      // }
       //获取最大版本号
       const maxVersion = await getMaxVersionNumber(id)
       const filePath = await downloadFile(url, `${new Date().getTime()}_v_${id}.` + filetype)

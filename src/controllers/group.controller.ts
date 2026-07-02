@@ -130,32 +130,32 @@ export const addMemberController = async (
     const requesterId = getUserId(req)
 
     if (isNaN(groupId)) {
-      res.status(400).json({ error: '无效的组ID' })
+      res.status(200).json({ success: false, message: '无效的组ID' })
       return
     }
 
     if (!userId) {
-      res.status(400).json({ error: '用户ID不能为空' })
+      res.status(200).json({ success: false, message: '用户ID不能为空' })
       return
     }
 
     const isOwner = await isGroupOwner(groupId, requesterId)
     if (!isOwner) {
-      res.status(403).json({ error: '只有组管理员可以添加成员' })
+      res.status(200).json({ success: false, message: '只有组管理员可以添加成员' })
       return
     }
 
     const result = await addMemberToGroup(groupId, userId, role || 'member')
 
     if (!result.success) {
-      res.status(400).json({ error: result.error })
+      res.status(200).json({ success: false, message: result.error })
       return
     }
 
     res.status(201).json({ success: true })
   } catch (error) {
     logger.error('Add member error:', error)
-    res.status(500).json({ error: '添加成员失败' })
+    res.status(500).json({ success: false, message: '添加成员失败' })
   }
 }
 

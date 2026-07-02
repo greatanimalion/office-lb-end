@@ -181,8 +181,6 @@ export const createDocumentController = async (
       res.status(400).json({ error: '请上传文件' })
       return
     }
-
-
     const documentId = await createDocument(
       userId,
       'user',
@@ -202,25 +200,21 @@ export const updateDocumentController = async (
 ): Promise<void> => {
   try {
     const documentId = parseInt(req.params.id, 10)
-    const { title } = req.body
+    const { title,permission } = req.body
     const userId = getUserId(req)
-
     if (isNaN(documentId)) {
-      res.status(400).json({ error: '无效的文档ID' })
+      res.status(200).json({ success: false, message: '无效的文档ID' })
       return
     }
-
-    const success = await updateDocument(documentId, title, userId)
-
+    const success = await updateDocument(documentId, title, userId, permission)
     if (!success) {
-      res.status(403).json({ error: '无权修改此文档' })
+      res.status(200).json({ success: false, message: '无权修改此文档' })
       return
     }
-
     res.json({ success: true })
   } catch (error) {
     logger.error('Update document error:', error)
-    res.status(500).json({ error: '更新文档失败' })
+    res.status(500).json({ success: false, message: '更新文档失败' })
   }
 }
 // 删除文档
@@ -364,13 +358,12 @@ export const getDocumentVersionsController = async (
       res.status(200).json({ success: false, message: '无效的文档ID' })
       return
     }
-
     const document = await getDocumentById(documentId)
     if (!document) {
-      res.status(404).json({ error: '文档不存在或无权访问' })
+      res.status(200).json({ success: false, message: '文档不存在或无权访问' })
       return
     }
-
+    
     const versions = await getDocumentVersion(documentId)
     res.json({ success: true, data: versions, currentVersion: document.v_number })
   } catch (error) {
@@ -397,7 +390,6 @@ export const revertDocumentVersionController = async (
       res.status(200).json({ success: false, message: '无权恢复此版本或版本不存在' })
       return
     }
-
     res.json({ success: true })
   } catch (error) {
     logger.error('Restore document version error:', error)
@@ -414,21 +406,21 @@ export const lockDocumentController = async (
     const userId = getUserId(req)
 
     if (isNaN(documentId)) {
-      res.status(400).json({ error: '无效的文档ID' })
+      res.status(200).json({ success: false, message: '无效的文档ID' })
       return
     }
 
     const success = await lockDocument(documentId, userId)
 
     if (!success) {
-      res.status(403).json({ error: '无权锁定此文档或文档已被锁定' })
+      res.status(200).json({ success: false, message: '无权锁定此文档或文档已被锁定' })
       return
     }
 
     res.json({ success: true })
   } catch (error) {
     logger.error('Lock document error:', error)
-    res.status(500).json({ error: '锁定文档失败' })
+    res.status(500).json({ success: false, message: '锁定文档失败' })
   }
 }
 // 解锁文档

@@ -5,10 +5,9 @@ import logger from '../utils/logger'
 
 type Document = Partial<_Document> & Partial<DocumentVersion>
 type DocumentVersionWithCreatedAt = Partial<DocumentVersion> & { created_at: string, version_number: number, filesize: number, alter_by_username: string }
-
+// 获取文档的所有版本
 export const getDocumentVersion = async (documentId: number): Promise<DocumentVersionWithCreatedAt[]> => {
   const prisma = getDB()
-
   const versions = await prisma.documentVersion.findMany({
     where: { documentId },
     include: { user: { select: { username: true } } },
@@ -24,7 +23,7 @@ export const getDocumentVersion = async (documentId: number): Promise<DocumentVe
     alter_by_username: v.user?.username || '未知',
   }))
 }
-
+// 获取文档的最大版本号
 export const getMaxVersionNumber = async (documentId: number): Promise<number> => {
   const prisma = getDB()
 
@@ -36,9 +35,9 @@ export const getMaxVersionNumber = async (documentId: number): Promise<number> =
   return result._max.vNumber || 0
 }
 
-type OmitDocument=Omit<Document, 'owner_type'>
-
-export const getAllDocuments = async (page: number, pageSize: number = 100, ownerId: number, owner_type: OwnerType, filter?: string): Promise<{documents: OmitDocument[], total: number}> => {
+type OmitDocument = Omit<Document, 'owner_type'>
+// 根据owner_type获取所有文档
+export const getAllDocuments = async (page: number, pageSize: number = 100, ownerId: number, owner_type: OwnerType, filter?: string): Promise<{  documents: OmitDocument[], total: number }> => {
   const offset = (page - 1) * pageSize
   const prisma = getDB()
 
@@ -70,6 +69,7 @@ export const getAllDocuments = async (page: number, pageSize: number = 100, owne
       fileSize: d.versions[0]?.filesize || 0,
       status: d.status,
       version_number: d.versions[0]?.vNumber || 0,
+      permission: d.permission!,
       locked: d.locked,
       locked_by: d.lockedBy || undefined,
       created_at: d.versions[0]?.createdAt.toISOString() || d.updatedAt.toISOString(),
@@ -78,7 +78,7 @@ export const getAllDocuments = async (page: number, pageSize: number = 100, owne
     total,
   }
 }
-
+// 根据owner_id获取所有文档
 export const getDocumentsByOwner = async (ownerId: number): Promise<Document[]> => {
   const prisma = getDB()
 
@@ -129,17 +129,26 @@ export const getSharedDocuments = async (userId: number): Promise<Document[]> =>
     permission: s.permission,
   }))
 }
-
+// 根据id获取文档详情
 export const getDocumentById = async (id: number): Promise<Document | null> => {
   const prisma = getDB()
-
   const doc = await prisma.document.findUnique({
     where: { id },
-    include: { versions: { orderBy: { vNumber: 'desc' }, take: 1 } },
   })
-
   if (!doc) return null
-
+  let version = null
+  if (doc.documentVId) {
+    version = await prisma.documentVersion.findUnique({
+      where: { id: doc.documentVId },
+    })
+  }
+  if (!version) {
+    [version] = await prisma.documentVersion.findMany({
+      where: { documentId: doc.id },
+      orderBy: { vNumber: 'desc' },
+      take: 1,
+    })
+  }
   return {
     id: doc.id,
     title: doc.title || '',
@@ -150,14 +159,14 @@ export const getDocumentById = async (id: number): Promise<Document | null> => {
     locked_by: doc.lockedBy || undefined,
     status: doc.status,
     updated_at: doc.updatedAt.toISOString(),
-    filepath: doc.versions[0]?.filepath || '',
-    fileSize: doc.versions[0]?.filesize || 0,
-    v_number: doc.versions[0]?.vNumber || 0,
-    alter_by: doc.versions[0]?.alterBy || 0,
-    created_at: doc.versions[0]?.createdAt.toISOString() || doc.updatedAt.toISOString(),
+    filepath: version?.filepath || '',
+    fileSize: version?.filesize || 0,
+    v_number: version?.vNumber || 0,
+    alter_by: version?.alterBy || 0,
+    created_at: version?.createdAt.toISOString() || doc.updatedAt.toISOString(),
   }
 }
-
+// 创建文档
 export const createDocument = async (
   ownerId: number,
   owner_type: OwnerType,
@@ -183,7 +192,7 @@ export const createDocument = async (
 
   return doc.id
 }
-
+// 关联文档版本
 export const DocumentRelateDV = async (d_id: number, d_v_id: number) => {
   const prisma = getDB()
   await prisma.document.update({
@@ -191,7 +200,7 @@ export const DocumentRelateDV = async (d_id: number, d_v_id: number) => {
     data: { documentVId: d_v_id },
   })
 }
-
+// 创建文档版本
 export const createDocumentVersion = async (userId: number, documentId: number, filepath: string,
   filesize: number = 0, V: number = 1,
 ): Promise<number> => {
@@ -217,7 +226,7 @@ export const createDocumentVersion = async (userId: number, documentId: number, 
 
   return version.id
 }
-
+// 更新文档
 export const updataDocuemnt = async (dId: number, title: string, permission: string): Promise<boolean> => {
   const prisma = getDB()
   try {
@@ -230,10 +239,9 @@ export const updataDocuemnt = async (dId: number, title: string, permission: str
     return false
   }
 }
-
+// 恢复文档版本
 export const restoreDocumentVersion = async (documentId: number, versionNumber: number, userId: number): Promise<boolean> => {
   const prisma = getDB()
-
   try {
     await prisma.document.update({
       where: { id: documentId },
@@ -251,7 +259,7 @@ export const restoreDocumentVersion = async (documentId: number, versionNumber: 
     return false
   }
 }
-
+// 锁定文档
 export const lockDocument = async (documentId: number, userId: number): Promise<boolean> => {
   const prisma = getDB()
 
@@ -270,7 +278,7 @@ export const lockDocument = async (documentId: number, userId: number): Promise<
 
   return true
 }
-
+// 解锁文档
 export const unlockDocument = async (documentId: number, userId: number): Promise<boolean> => {
   const prisma = getDB()
 
@@ -291,25 +299,35 @@ export const unlockDocument = async (documentId: number, userId: number): Promis
 
   return true
 }
-
+// 更新文档
 export const updateDocument = async (
   id: number,
   title: string,
-  userId: number
+  userId: number,
+  permission?: string,
 ): Promise<boolean> => {
   const prisma = getDB()
-
+  console.log(id,
+  title,
+  userId,
+  permission )
+  
   const doc = await prisma.document.findUnique({ where: { id } })
   if (!doc || doc.ownerId !== userId) return false
-
-  await prisma.document.update({
-    where: { id },
-    data: { title },
-  })
+  if (permission) {
+    await prisma.document.update({
+      where: { id },
+      data: { title, permission: permission.toString().trim() },
+    })
+  } else {
+    await prisma.document.update({
+      where: { id },
+      data: { title },
+    })
+  }
   await prisma.auditLog.create({
     data: { userId, documentId: id, action: '修改文档信息' },
   })
-
   return true
 }
 

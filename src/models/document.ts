@@ -30,3 +30,10 @@ export interface DocumentShare {
   sharedBy: number
   createdAt: Date
 }
+
+export interface DocumentTemplate {
+  id: number
+  document_id: number
+  template_name: string
+  template_content: string
+}

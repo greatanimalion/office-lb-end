@@ -42,10 +42,11 @@ function denyResult(): DocumentAccessResult {
 }
 
 function parsePermissionMask(permissionStr: string): DocumentAccessResult {
-  const permNum = parseInt(permissionStr, 16)
+  const permNum = parseInt(permissionStr, 10)
   if (isNaN(permNum)) return denyResult()
 
   const permissions = numToPermisson(permNum)
+  console.log(permissions)
   return {
     VIEW: permissions.includes(PermissionType.VIEW),
     DOWNLOAD: permissions.includes(PermissionType.DOWNLOAD),

@@ -1,3 +1,9 @@
+# 添加新路由的流程
+1. 创建相应的service文件
+2. 创建相应的controller文件
+3. 创建相应的路由文件
+4. 更新项目流程
+
 # doc-management-backend
 
 ## 快速开始
