@@ -46,6 +46,16 @@ model Document {
   @@map("documents")
 }
 
+model DocumenDeleteMap {
+  documentId Int      @map("document_id")
+  userId     Int      @map("user_id")
+  deletedAt  DateTime @map("deleted_at") @default(now())
+  groupId    Int?     @map("group_id")
+
+  @@id([documentId, userId])
+  @@map("document_delete_map")
+}
+
 model DocumentVersion {
   id         Int      @id @default(autoincrement())
   documentId Int      @map("document_id")

@@ -2,6 +2,7 @@ import fs from 'fs'
 import { getDB } from '../db'
 import { type Document as _Document, DocumentVersion, OwnerType } from '../models/document.js'
 import logger from '../utils/logger'
+import { checkDocumentAccess } from './permission.service'
 
 type Document = Partial<_Document> & Partial<DocumentVersion>
 type DocumentVersionWithCreatedAt = Partial<DocumentVersion> & { created_at: string, version_number: number, filesize: number, alter_by_username: string }
@@ -44,8 +45,8 @@ export const getAllDocuments = async (page: number, pageSize: number = 100, owne
   const where: Record<string, unknown> = {
     ownerId,
     ownerType: owner_type,
+    status:1,//正常文档
   }
-
   if (filter) {
     where.title = { contains: filter }
   }
@@ -78,6 +79,46 @@ export const getAllDocuments = async (page: number, pageSize: number = 100, owne
     total,
   }
 }
+//获取回收站文档
+export const getDeleteDoc = async (groupId: number) => {
+  const prisma = getDB()
+  // 先查 documenDeleteMap 获取该组的删除记录
+  const deleteMaps = await prisma.documenDeleteMap.findMany({
+    where: { groupId },
+    orderBy: { deletedAt: 'desc' },
+  })
+
+  if (deleteMaps.length === 0) return []
+
+  // 查询相关用户信息
+  const userIds = [...new Set(deleteMaps.map(m => m.userId))]
+  const users = await prisma.user.findMany({
+    where: { id: { in: userIds } },
+    select: { id: true, username: true },
+  })
+  const userMap = new Map(users.map(u => [u.id, u.username]))
+
+  const docIds = deleteMaps.map(m => m.documentId)
+  const docs = await prisma.document.findMany({
+    where: { id: { in: docIds } },
+    include: { versions: { orderBy: { vNumber: 'desc' }, take: 1 } },
+  })
+
+  const docMap = new Map(docs.map(d => [d.id, d]))
+  return deleteMaps.map(m => {
+    const d = docMap.get(m.documentId)
+    return {
+      id: m.documentId,
+      title: d?.title || '',
+      fileSize: d?.versions[0]?.filesize || 0,
+      updated_at: d?.updatedAt.toISOString() || '',
+      deleted_at: m.deletedAt.toISOString(),
+      username: userMap.get(m.userId) || '',
+      deleteBy: m.userId,
+    }
+  })
+}
+
 // 根据owner_id获取所有文档
 export const getDocumentsByOwner = async (ownerId: number): Promise<Document[]> => {
   const prisma = getDB()
@@ -170,7 +211,7 @@ export const getDocumentById = async (id: number): Promise<Document | null> => {
 export const createDocument = async (
   ownerId: number,
   owner_type: OwnerType,
-  title: string
+  title: string,
 ): Promise<number> => {
   const prisma = getDB()
 
@@ -264,6 +305,7 @@ export const lockDocument = async (documentId: number, userId: number): Promise<
   const prisma = getDB()
 
   const doc = await prisma.document.findUnique({ where: { id: documentId } })
+  console.log(doc)
   if (!doc || doc.ownerId !== userId || doc.locked === 1) {
     return false
   }
@@ -331,12 +373,12 @@ export const updateDocument = async (
   return true
 }
 
-export const deleteDocument = async (id: number, userId: number): Promise<boolean> => {
+export const deleteDocumentForever = async (id: number, userId: number): Promise<boolean> => {
   const prisma = getDB()
 
   const doc = await prisma.document.findUnique({ where: { id } })
   if (!doc) return false
-
+  
   if (doc.ownerId !== userId) return false
 
   const versions = await prisma.documentVersion.findMany({
@@ -349,6 +391,7 @@ export const deleteDocument = async (id: number, userId: number): Promise<boolea
     }
   }
 
+  await prisma.documenDeleteMap.deleteMany({ where: { documentId: id } })
   await prisma.documentVersion.deleteMany({ where: { documentId: id } })
   await prisma.documentShare.deleteMany({ where: { documentId: id } })
   await prisma.document.delete({ where: { id } })
@@ -358,10 +401,55 @@ export const deleteDocument = async (id: number, userId: number): Promise<boolea
 
   return true
 }
+export const recorveyDocument=async (did: number)=>{
+  const prisma = getDB()
+  try {
+    await prisma.document.update({
+      where: { id: did },
+      data: { status: 1 },
+    })
+    await prisma.documenDeleteMap.deleteMany({ where: { documentId: did } })
+    return true
+  } catch (error) {
+    console.error('恢复文档失败:', error)
+    return false
+  }
+}
+
+
+export const deleteDocumentTemp = async (did: number, userId: number,gid:number): Promise<boolean> => {
+  const prisma = getDB()
+  try {
+    const doc = await prisma.document.findUnique({ where: { id: did } })
+    if (!doc) return false
+    const member = await prisma.groupMember.findUnique({ where: { groupId_userId: { groupId: gid, userId } } })
+    if (!member) return false
+    const access=await checkDocumentAccess(doc, userId,member.role==='owner'?'admin':'member')
+    if (!access.DELETE) return false
+    await prisma.document.update({
+      where: { id: did },
+      data: { status: 0 },
+    })
+    await prisma.documenDeleteMap.upsert({
+      where: { documentId_userId: { documentId: did, userId } },
+      update: { deletedAt: new Date() },
+      create: { documentId: did, userId,groupId:gid },
+    })
+    return true
+  } catch (error) {
+    console.error('删除文档失败(软删除):', error)
+    return false
+  }
+}
 
 export const deleteDVserion = async (dvId: number): Promise<boolean> => {
   const prisma = getDB()
   try {
+    const version = await prisma.documentVersion.findUnique({ where: { id: dvId } })
+    if (!version) return false
+    if (version.filepath && fs.existsSync(version.filepath)) {
+      fs.unlinkSync(version.filepath)
+    }
     await prisma.documentVersion.delete({ where: { id: dvId } })
     return true
   } catch {

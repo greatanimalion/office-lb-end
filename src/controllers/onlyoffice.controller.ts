@@ -36,11 +36,15 @@ export const getEditorConfigController = async (
         permission: document.permission,
       },
       id,
-      u.role!
+      u.role!,
     )
     if (!access.VIEW) {
       res.status(200).json({ success: false, error: '文档不存在或无权访问' })
       return
+    }
+    //判断文档是否被锁定,除锁定者，任何人无法编辑
+    if (document.locked === 1&&document.locked_by !== id) {
+      access.EDIT = false
     }
 
     const editorConfig = generateEditorConfig(

@@ -6,7 +6,9 @@ import {
   getDocumentById,
   createDocument,
   updateDocument,
-  deleteDocument,
+  deleteDocumentTemp,
+  deleteDocumentForever,
+  recorveyDocument,
   shareDocument,
   unshareDocument,
   trackDocumentUpdate,
@@ -17,7 +19,8 @@ import {
   getAllDocuments,
   DocumentRelateDV,
   createDocumentVersion,
-  deleteDVserion
+  deleteDVserion,
+  getDeleteDoc
 } from '../services/document.service.js'
 import logger from '../utils/logger.js'
 import { type OwnerType } from '../models/document.js'
@@ -26,10 +29,26 @@ import { type OwnerType } from '../models/document.js'
 const getUserId = (req: Request): number => {
   return (req.user as { id: number })?.id
 }
+// 恢复删除文档
+export const recoverDocumentController=async(req: Request, res: Response)=>{
+    try{
+        const documentId = parseInt(req.params.id, 10)
+        const document = await getDocumentById(documentId)
+        if (!document) {
+          res.status(200).json({ success: false, message: '文档不存在或无权访问' })
+          return
+        }
+        const result = await recorveyDocument(documentId)
+        res.json({ success: result, message:result ? '恢复文档成功':'恢复文档失败' })
+    }catch (error) {
+        logger.error('Recover document error:', error)
+        res.status(500).json({ error: '恢复文档失败' })
+    }
+}
+
 export const viewDocumentByIdController = async (req: Request, res: Response) => {
   try {
     const documentId = parseInt(req.params.documentId, 10)
-    const userId = getUserId(req)
     const document = await getDocumentById(documentId)
     if (!document) {
       res.status(404).json({ error: '文档不存在或无权访问' })
@@ -111,6 +130,24 @@ export const getAllDocumentsController = async (
     res.status(500).json({ success: false, message: '获取所有文档列表失败' })
   }
 }
+// 获取回收站文档
+export const getDeleteDocumentsController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const groupId = parseInt(req.params.groupId, 10)
+    if(isNaN(groupId)){
+      res.status(200).json({success: false, message: '无效的分组ID' })
+      return
+    }
+    const documents = await getDeleteDoc(groupId)
+    res.json({ success: true, data: documents })
+  } catch (error) {
+    logger.error('Get delete documents error:', error)
+    res.status(500).json({ success: false, message: '获取回收站文档列表失败' })
+  }
+}
 // 获取共享文档
 export const getSharedDocumentsController = async (
   req: Request,
@@ -125,7 +162,7 @@ export const getSharedDocumentsController = async (
     res.status(500).json({ error: '获取共享文档列表失败' })
   }
 }
-// 获取文档
+// 下载文档
 export const getDocumentController = async (
   req: Request,
   res: Response
@@ -217,8 +254,37 @@ export const updateDocumentController = async (
     res.status(500).json({ success: false, message: '更新文档失败' })
   }
 }
-// 删除文档
+// 临时删除文档
 export const deleteDocumentController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const documentId = parseInt(req.params.id, 10)
+    const userId = getUserId(req)
+    const groupId = Number(req.body.groupId)
+    
+    console.log(documentId, groupId)
+    if (isNaN(documentId)||isNaN(groupId)) {
+      res.status(200).json({ success: false, message: '无效的文档ID或组ID' })
+      return
+    }
+
+    const success = await deleteDocumentTemp(documentId, userId,groupId)
+
+    if (!success) {
+      res.status(200).json({ success: false, message: '无权删除此文档' })
+      return
+    }
+
+    res.json({ success: true })
+  } catch (error) {
+    logger.error('Delete document error:', error)
+    res.status(500).json({ success: false, message: '删除文档失败' })
+  }
+}
+// 永久删除文档
+export const deleteDocumentForeverController = async (
   req: Request,
   res: Response
 ): Promise<void> => {
@@ -227,21 +293,21 @@ export const deleteDocumentController = async (
     const userId = getUserId(req)
 
     if (isNaN(documentId)) {
-      res.status(400).json({ error: '无效的文档ID' })
+      res.status(200).json({ success: false, message: '无效的文档ID' })
       return
     }
 
-    const success = await deleteDocument(documentId, userId)
+    const success = await deleteDocumentForever(documentId, userId)
 
     if (!success) {
-      res.status(403).json({ error: '无权删除此文档' })
+      res.status(200).json({ success: false, message: '无权删除此文档' })
       return
     }
 
     res.json({ success: true })
   } catch (error) {
-    logger.error('Delete document error:', error)
-    res.status(500).json({ error: '删除文档失败' })
+    logger.error('Delete document forever error:', error)
+    res.status(500).json({ success: false, message: '永久删除文档失败' })
   }
 }
 // 删除文档版本
@@ -251,18 +317,15 @@ export const deleteDocumentVersionController = async (
 ): Promise<void> => {
   try {
     const dvId = parseInt(req.params.id, 10)
-
     if (isNaN(dvId)) {
       res.status(200).json({ success: false, error: '无效的文档版本ID' })
       return
     }
     const success = deleteDVserion(dvId)
-
     if (!success) {
       res.status(200).json({ success: false, error: '无权删除此文档版本' })
       return
     }
-
     res.json({ success: true })
   } catch (error) {
     logger.error('Delete document version error:', error)

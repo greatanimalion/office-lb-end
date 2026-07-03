@@ -1,4 +1,4 @@
-import  { RequestHandler, Router } from 'express'
+import { RequestHandler, Router } from 'express'
 import multer from 'multer'
 import {
   getSharedDocumentsController,
@@ -17,6 +17,9 @@ import {
   getAllDocumentsController,
   uploadDocumentController,
   deleteDocumentVersionController,
+  deleteDocumentForeverController,
+  getDeleteDocumentsController,
+  recoverDocumentController,
 } from '../controllers/document.controller'
 import {
   initUploadController,
@@ -33,7 +36,7 @@ const router = Router()
 const chunkStorage = multer.memoryStorage()
 const chunkUpload = multer({ storage: chunkStorage })
 
-
+// 下载
 router.get('/d/:id', getDocumentController as RequestHandler)
 
 router.use(authenticate)
@@ -41,12 +44,16 @@ router.get('/view', viewDocumentByIdController as RequestHandler)
 router.get('/shared', getSharedDocumentsController as RequestHandler)
 router.post('/create', createUploadMiddleware('file'), createDocumentController as RequestHandler)
 router.put('/:id', updateDocumentController as RequestHandler)
-// router.delete('/:id', deleteDocumentController as RequestHandler)
+router.post('/:id/temp', deleteDocumentController as RequestHandler)
+// 恢复删除文档
+router.post('/:id/recovery', recoverDocumentController as RequestHandler)
+router.delete('/:id/forever', deleteDocumentForeverController as RequestHandler)
 // router.post('/:id/share', shareDocumentController as RequestHandler)
 // router.delete('/:id/share/:userId', unshareDocumentController as RequestHandler)
 // router.get('/:id/download', downloadDocumentController as RequestHandler)
 // router.post('/:id/track', trackDocumentController as RequestHandler)
 router.get('/all', getAllDocumentsController as RequestHandler)
+router.get('/:groupId/deleted', getDeleteDocumentsController as RequestHandler)
 router.get('/:id/versions', getDocumentVersionsController as RequestHandler)
 router.delete('/:id/version', deleteDocumentVersionController as RequestHandler)
 router.post('/revert', revertDocumentVersionController as RequestHandler)
