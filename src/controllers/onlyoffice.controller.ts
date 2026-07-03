@@ -1,6 +1,6 @@
 import { Request, Response } from 'express'
 import { generateEditorConfig, handleCallback } from '../services/onlyoffice.service.js'
-import { getDocumentById } from '../services/document.service.js'
+import { getDocumentById, recoredRecentDocument } from '../services/document.service.js'
 import { checkDocumentAccess } from '../services/permission.service.js'
 import logger from '../utils/logger.js'
 import _config from '../config/index.js'
@@ -42,6 +42,8 @@ export const getEditorConfigController = async (
       res.status(200).json({ success: false, error: '文档不存在或无权访问' })
       return
     }
+    // 记录最近最近打开文档
+    await recoredRecentDocument(documentId, id, document.owner_id)
     //判断文档是否被锁定,除锁定者，任何人无法编辑
     if (document.locked === 1&&document.locked_by !== id) {
       access.EDIT = false

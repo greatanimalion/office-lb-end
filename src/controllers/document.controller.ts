@@ -20,7 +20,8 @@ import {
   DocumentRelateDV,
   createDocumentVersion,
   deleteDVserion,
-  getDeleteDoc
+  getDeleteDoc,
+  getRecentDocuments
 } from '../services/document.service.js'
 import logger from '../utils/logger.js'
 import { type OwnerType } from '../models/document.js'
@@ -160,6 +161,25 @@ export const getSharedDocumentsController = async (
   } catch (error) {
     logger.error('Get shared documents error:', error)
     res.status(500).json({ error: '获取共享文档列表失败' })
+  }
+}
+// 最近访问文档
+export const recentDocumentController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = getUserId(req)
+    const filename = req.query.filename as string
+    const startTime=req.query.startTime as string
+    const endTime=req.query.endTime as string
+    const page = parseInt(req.query.page as string, 10) || 1
+    const pageSize = parseInt(req.query.pageSize as string, 10) || 100
+    const documents = await getRecentDocuments(userId, page, pageSize, startTime, endTime,filename)
+    res.json({ success: true, data: documents })
+  } catch (error) {
+    logger.error('Get recent documents error:', error)
+    res.status(500).json({ success: false, message: '获取最近文档失败' })
   }
 }
 // 下载文档
@@ -401,9 +421,7 @@ export const trackDocumentController = async (
       res.status(400).json({ error: '无效的文档ID' })
       return
     }
-
     await trackDocumentUpdate(documentId, userId)
-
     res.json({ success: true })
   } catch (error) {
     logger.error('Track document error:', error)

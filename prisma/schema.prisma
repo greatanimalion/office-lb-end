@@ -42,11 +42,12 @@ model Document {
   shares     DocumentShare[]
   shareLinks ShareLink[]
   auditLogs  AuditLog[]
+  recentDocuments RecentDocument[]
 
   @@map("documents")
 }
 
-model DocumenDeleteMap {
+model DocumentDeleteMap {
   documentId Int      @map("document_id")
   userId     Int      @map("user_id")
   deletedAt  DateTime @map("deleted_at") @default(now())
@@ -54,6 +55,20 @@ model DocumenDeleteMap {
 
   @@id([documentId, userId])
   @@map("document_delete_map")
+}
+
+model RecentDocument {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  documentId Int      @map("document_id")
+  accessedAt DateTime @map("accessed_at") @default(now())
+  originId   Int?     @map("origin_id")
+  linkUrl    String?  @map("link_url")
+
+  document Document @relation(fields: [documentId], references: [id])
+
+  @@unique([userId, documentId])
+  @@map("recent_documents")
 }
 
 model DocumentVersion {
