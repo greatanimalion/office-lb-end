@@ -11,7 +11,7 @@ import { errorHandler, notFoundHandler } from './middlewares/error.middleware'
 import { apiLimiter } from './middlewares/rateLimit.middleware'
 import { ensureDirectoryExists } from './utils/file'
 import logger from './utils/logger'
-import { initMeiliSearch } from './utils/MeiliSearch'
+import { initMeiliSearch } from './services/search.service'
 import './config/passport'
 import { getDB } from './db'
 

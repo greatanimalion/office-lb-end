@@ -14,7 +14,6 @@ export const searchController = async (
       res.status(400).json({ error: '搜索关键词不能为空' })
       return
     }
-
     const result = await searchDocuments({ query: q, author: userId })
 
     res.json(result)

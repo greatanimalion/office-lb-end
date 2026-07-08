@@ -3,6 +3,7 @@ import { getDB } from '../db'
 import { type Document as _Document, DocumentVersion, OwnerType } from '../models/document.js'
 import logger from '../utils/logger'
 import { checkDocumentAccess } from './permission.service'
+import { updateDocumentInIndex, extractTextFromFile } from './search.service.js'
 
 type Document = Partial<_Document> & Partial<DocumentVersion>
 type DocumentVersionWithCreatedAt = Partial<DocumentVersion> & { created_at: string, version_number: number, filesize: number, alter_by_username: string }
@@ -412,6 +413,27 @@ export const recoredRecentDocument = async (documentId: number, userId: number, 
     })
   } catch (error) {
     console.error('记录最近访问文档失败:', error)
+  }
+
+  // 用户访问文档时，同步 MeiliSearch 索引（异步，不阻塞）
+  try {
+    const doc = await prisma.document.findUnique({
+      where: { id: documentId },
+      include: { versions: { orderBy: { vNumber: 'desc' }, take: 1 } },
+    })
+    if (!doc) return
+
+    const filepath = doc.versions[0]?.filepath
+    const content = filepath ? await extractTextFromFile(filepath) : ''
+    await updateDocumentInIndex({
+      id: doc.id.toString(),
+      title: doc.title || '',
+      content: content,
+      userId: doc.ownerId,
+      accessedAt: new Date().toISOString(),
+    })
+  } catch (error) {
+    logger.error('同步 MeiliSearch 索引失败:', error)
   }
 }
 
