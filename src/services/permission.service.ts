@@ -26,7 +26,19 @@ function fullAccess(): DocumentAccessResult {
     UPLOAD_FILE: true,
   }
 }
-
+function publicDocumentAccess(): DocumentAccessResult {
+  return {
+    VIEW: true,
+    DOWNLOAD: true,
+    EDIT: false,
+    DELETE: false,
+    COMMENT: false,
+    CHANGE_PERMISSION: false,
+    SHARE: false,
+    MAKE_TEMPLATE: false,
+    UPLOAD_FILE: false,
+  }
+}
 function denyResult(): DocumentAccessResult {
   return {
     VIEW: false,
@@ -44,9 +56,7 @@ function denyResult(): DocumentAccessResult {
 function parsePermissionMask(permissionStr: string): DocumentAccessResult {
   const permNum = parseInt(permissionStr, 10)
   if (isNaN(permNum)) return denyResult()
-
   const permissions = numToPermisson(permNum)
-  console.log(permissions)
   return {
     VIEW: permissions.includes(PermissionType.VIEW),
     DOWNLOAD: permissions.includes(PermissionType.DOWNLOAD),
@@ -69,7 +79,7 @@ export const checkDocumentAccess = async (
   // 公共文档放行
   if (document.ownerType === 'public') {
     console.log("=====================公共文档=======================")
-    return fullAccess()
+    return publicDocumentAccess()
 
   }
   // 系统管理员放行
@@ -90,56 +100,49 @@ export const checkDocumentAccess = async (
   if (permRecord) {
     // 时间校验
     if (permRecord.startTime || permRecord.endTime) {
-      const now = new Date()
-      if (permRecord.startTime && new Date(permRecord.startTime) > now) {
-        console.log("=====================时间未到=======================")
-        return denyResult()
+      const now = new Date().getTime()
+      if (permRecord.startTime && new Date(permRecord.startTime).getTime() > now) {
+        console.log("=====================时间未到，进入下一流程=======================")
+      } else if (permRecord.endTime && new Date(permRecord.endTime).getTime() < now) {
+        console.log("=====================时间已过期，进入下一流程=======================")
+      } else if (permRecord.permission) {
+        console.log("=====================校验权限中=======================")
+        return parsePermissionMask(permRecord.permission)
       }
-      if (permRecord.endTime && new Date(permRecord.endTime) < now) {
-        console.log("=====================时间已过期=======================")
-        return denyResult()
-      }
-    }
-    // 有限次数校验
-    if (permRecord.count !== null && permRecord.count !== undefined) {
+    } else if (permRecord.count !== null && permRecord.count !== undefined) {
       if (permRecord.count <= 0) {
-        console.log("=====================次数已用完=======================")
+        console.log("=====================次数已用完，进入下一流程=======================")
         await prisma.permission.delete({ where: { id: permRecord.id } })
-        return denyResult()
+      } else {
+        await prisma.permission.update({
+          where: { id: permRecord.id },
+          data: { count: { decrement: 1 } },
+        })
+        if (permRecord.permission) {
+          console.log("=====================校验权限中=======================")
+          //临时权限最高，优先校验临时权限  
+          return parsePermissionMask(permRecord.permission)
+        }
       }
-      await prisma.permission.update({
-        where: { id: permRecord.id },
-        data: { count: { decrement: 1 } },
-      })
-    }
-    //剩下的时永久与无限次数
-    if (permRecord.permission) {
+    } else if (permRecord.permission) {
       console.log("=====================校验权限中=======================")
       return parsePermissionMask(permRecord.permission)
     }
   }
-  // 当文档与用户同组时
+  // 文档归属组，用户是组成员 -> 全部权限
   if (document.ownerType === 'group') {
     const member = await prisma.groupMember.findUnique({
       where: { groupId_userId: { groupId: document.ownerId, userId } },
     })
     if (member) {
-      console.log("=====================用户是组成员=======================")
-      if (member.role === 'owner') {
-        console.log("=====================用户是组所有者=======================")
-        return fullAccess()
+      console.log("=====================文档归属组，用户是组成员=======================")
+      if(document.permission){
+        return parsePermissionMask(document.permission)
       }
-      //查询文档固有权限
-      const doc = await prisma.document.findUnique({ where: { id: document.id } })
-      if (!doc) return denyResult()
-      if (doc.permission) {
-        console.log("=====================文档有有权限=======================")
-        return parsePermissionMask(doc.permission)
-      }
-      return fullAccess()
+      return fullAccess() //组内首级目录权限默认完全放开，
     }
   }
-  // 当文档与用户同文件夹时
+  // 文档归属文件夹
   if (document.ownerType === 'folder') {
     let folderId = document.ownerId
     const folder = await prisma.folder.findUnique({ where: { id: folderId } })
@@ -148,18 +151,24 @@ export const checkDocumentAccess = async (
       const member = await prisma.groupMember.findUnique({
         where: { groupId_userId: { groupId: folder.groupId, userId } },
       })
-      // 当用户是文件夹所属组的成员时
       if (member) {
-        //查询文档固有权限
+        // 组所有者 -> 全部权限
+        if (member.role === 'owner') {
+          console.log("=====================用户是组所有者=======================")
+          return fullAccess()
+        }
+        // 查询文档固有权限
         const doc = await prisma.document.findUnique({ where: { id: document.id } })
         if (!doc) return denyResult()
         if (doc.permission) {
-          console.log(152, "=====================文档有有权限=======================")
+          console.log("=====================文档有权限=======================")
           return parsePermissionMask(doc.permission)
         }
-        return folder.permission
-          ? parsePermissionMask(folder.permission)
-          : denyResult()
+        if (folder.permission) {
+          console.log("=====================文件夹有权限=======================")
+          return parsePermissionMask(folder.permission)
+        }
+        return denyResult()
       }
     }
   }
