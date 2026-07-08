@@ -1,7 +1,7 @@
 import { Request, Response } from 'express'
-import { generateEditorConfig, handleCallback } from '../services/onlyoffice.service.js'
-import { getDocumentById, recoredRecentDocument } from '../services/document.service.js'
-import { checkDocumentAccess } from '../services/permission.service.js'
+import { generateEditorConfig, handleCallback } from '../services/onlyoffice.service'
+import { getDocumentById, recoredRecentDocument } from '../services/document.service'
+import { checkDocumentAccess } from '../services/permission.service'
 import logger from '../utils/logger.js'
 import _config from '../config/index.js'
 import { getUserById } from '../services/user.service.js'
@@ -60,7 +60,6 @@ export const getEditorConfigController = async (
       document.v_number!,
       access
     )
-
     res.send(editorConfig)
   } catch (error) {
     logger.error('Get editor config error:', error)

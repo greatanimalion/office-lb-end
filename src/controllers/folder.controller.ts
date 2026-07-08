@@ -7,8 +7,6 @@ import {
   buildFolderTree
 } from '../services/folder'
 import logger from '../utils/logger'
-import { createPermission } from '../services/permission.service'
-import { shareType } from '../constants/permission'
 
 const getUserId = (req: Request): number => {
   return (req.user as { id: number })?.id
