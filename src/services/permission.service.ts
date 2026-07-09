@@ -175,27 +175,60 @@ export const checkDocumentAccess = async (
   return denyResult()
 }
 
+export const getPermissionsForDocument = async (
+  documentId: number
+): Promise<any[]> => {
+  const prisma = getDB()
+  const perms = await prisma.permission.findMany({
+    where: { target_id: documentId },
+    orderBy: { createdAt: 'desc' },
+  })
+  return perms
+}
+
+export const deletePermission = async (
+  toId: number,
+  targetId: number
+): Promise<boolean> => {
+  const prisma = getDB()
+  const result = await prisma.permission.deleteMany({
+    where: { to_id: toId, target_id: targetId },
+  })
+  return result.count > 0
+}
+
 export const createPermission = async (
+  toType: string,
   operatorId: number,
   toId: number,
-  permission: string,
   targetId: number,
-  shareType?: 'user' | 'group' | 'link',
-  groupId?: number
-): Promise<{ success: boolean; message?: string }> => {
+  permission: string,
+  startTime: string,
+  endTime: string,
+  password: string,
+  count: number,
+  createdAt: number,
+  groupId: number
+): Promise<{ success: boolean; message?: string|number }> => {
   const prisma = getDB()
   try {
-    await prisma.permission.create({
+    const result = await prisma.permission.create({
       data: {
+        startTime: new Date(startTime).toISOString(),
+        endTime: new Date(endTime).toISOString(),
+        password,
+        count,
+        createdAt: new Date(createdAt).toISOString(),
+        group_id: groupId,
+        to_type: toType,
         operator_id: operatorId,
         to_id: toId,
         permission,
         target_id: targetId,
-        to_type: shareType || null,
-        group_id: groupId,
       },
     })
-    return { success: true, message: '权限创建成功' }
+    if(!result.permission) return { success: false, message: '创建权限失败' }
+    return { success: true, message: result.id }
   } catch (err) {
     console.error(err)
     return { success: false, message: '创建权限失败' }

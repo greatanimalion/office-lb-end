@@ -20,4 +20,8 @@ export const verifyToken = (token: string,secret?:string): TokenPayload => {
   return jwt.verify(token, secret || config.auth.jwtSecret) as TokenPayload
 }
 
-
+export const generateLinkToken = (payload:{permissionId:number} ,secret?:string): string => {
+  return jwt.sign(payload, secret || config.auth.jwtSecret, {
+    expiresIn: config.auth.jwtExpiresIn as jwt.SignOptions['expiresIn'],
+  })
+}
